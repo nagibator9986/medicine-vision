@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Наши врачи{% endblock %}
+
+{% block extra_css %}
+<style>
+    .doctor-card {
+        transition: all 0.3s ease;
+        border-radius: 12px;
+        overflow: hidden;
+    }
+    .doctor-card:hover {
+        transform: translateY(-6px);
+        box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.12) !important;
+    }
+    .doctor-avatar {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        object-fit: cover;
+        border: 3px solid #e9ecef;
+    }
+    .doctor-avatar-placeholder {
+        width: 90px;
+        height: 90px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 2rem;
+    }
+    .star-rating .fas.fa-star {
+        color: #ffc107;
+    }
+    .star-rating .far.fa-star {
+        color: #ddd;
+    }
+    .star-rating .fas.fa-star-half-alt {
+        color: #ffc107;
+    }
+    .search-box {
+        border-radius: 50px;
+        padding-left: 2.5rem;
+    }
+    .search-icon {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: #adb5bd;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Heading -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-user-md me-2 text-primary"></i>Наши врачи</h2>
+            <p class="text-muted mb-0">Выберите специалиста и запишитесь на прием</p>
+        </div>
+    </div>
+
+    <!-- Search & Filter -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('patient.doctors') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label class="form-label fw-semibold">Поиск врача</label>
+                        <div class="position-relative">
+                            <i class="fas fa-search search-icon"></i>
+                            <input type="text" name="search" class="form-control search-box"
+                                   placeholder="Имя или фамилия врача..."
+                                   value="{{ request.args.get('search', '') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label fw-semibold">Специализация</label>
+                        <select name="specialization" class="form-select">
+                            <option value="">Все специализации</option>
+                            {% for spec in specializations %}
+                            <option value="{{ spec }}" {% if request.args.get('specialization') == spec %}selected{% endif %}>
+                                {{ spec }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="fas fa-filter me-1"></i>Найти
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Doctors Grid -->
+    <div class="row g-4">
+        {% for doctor in doctors %}
+        <div class="col-xl-4 col-md-6">
+            <div class="card doctor-card shadow-sm h-100">
+                <div class="card-body text-center p-4">
+                    <!-- Avatar -->
+                    <div class="mb-3 d-flex justify-content-center">
+                        {% if doctor.avatar %}
+                        <img src="{{ url_for('static', filename='uploads/avatars/' + doctor.avatar) }}"
+                             alt="{{ doctor.first_name }}" class="doctor-avatar">
+                        {% else %}
+                        <div class="doctor-avatar-placeholder">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Name & Specialization -->
+                    <h5 class="fw-bold mb-1">{{ doctor.first_name }} {{ doctor.last_name }}</h5>
+                    <p class="text-primary mb-2">{{ doctor.specialization or 'Врач' }}</p>
+
+                    <!-- Experience -->
+                    {% if doctor.experience %}
+                    <p class="text-muted small mb-2">
+                        <i class="fas fa-briefcase me-1"></i>Стаж: {{ doctor.experience }} лет
+                    </p>
+                    {% endif %}
+
+                    <!-- Price -->
+                    {% if doctor.consultation_price %}
+                    <p class="mb-2">
+                        <span class="badge bg-success bg-opacity-10 text-success px-3 py-2">
+                            <i class="fas fa-tag me-1"></i>{{ doctor.consultation_price }} тг
+                        </span>
+                    </p>
+                    {% endif %}
+
+                    <!-- Rating -->
+                    <div class="star-rating mb-3">
+                        {% set rating = doctor.avg_rating|default(0)|float %}
+                        {% for i in range(1, 6) %}
+                            {% if i <= rating|int %}
+                                <i class="fas fa-star"></i>
+                            {% elif i - rating < 1 and i - rating > 0 %}
+                                <i class="fas fa-star-half-alt"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="text-muted small ms-1">({{ doctor.reviews_count|default(0) }})</span>
+                    </div>
+
+                    <!-- Book Button -->
+                    <a href="{{ url_for('patient.book_appointment', doctor_id=doctor.id) }}"
+                       class="btn btn-primary w-100">
+                        <i class="fas fa-calendar-plus me-1"></i>Записаться
+                    </a>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-user-md-slash fa-4x text-muted mb-3 d-block opacity-50"></i>
+                    <h5 class="text-muted">Врачи не найдены</h5>
+                    <p class="text-muted">Попробуйте изменить параметры поиска</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,538 @@
+{% extends 'base.html' %}
+
+{% block title %}AI Ассистент - MediPlatform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .chat-page {
+        padding-top: 80px;
+        padding-bottom: 20px;
+        min-height: 100vh;
+        background: #f0f2f5;
+    }
+
+    .chat-wrapper {
+        max-width: 800px;
+        margin: 0 auto;
+        height: calc(100vh - 120px);
+        display: flex;
+        flex-direction: column;
+        background: #fff;
+        border-radius: 16px;
+        box-shadow: 0 2px 16px rgba(0,0,0,.08);
+        overflow: hidden;
+    }
+
+    /* ── Chat header ── */
+    .chat-header {
+        padding: 16px 24px;
+        background: linear-gradient(135deg, #0d6efd 0%, #0b5ed7 100%);
+        color: #fff;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-shrink: 0;
+    }
+
+    .chat-header-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .chat-avatar {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        background: rgba(255,255,255,.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+
+    .chat-header-name {
+        font-weight: 600;
+        font-size: 1.05rem;
+    }
+
+    .chat-header-status {
+        font-size: .78rem;
+        opacity: .8;
+    }
+
+    .btn-clear-history {
+        background: rgba(255,255,255,.15);
+        border: 1px solid rgba(255,255,255,.25);
+        color: #fff;
+        font-size: .8rem;
+        padding: 6px 14px;
+        border-radius: 20px;
+        cursor: pointer;
+        transition: all .2s;
+    }
+
+    .btn-clear-history:hover {
+        background: rgba(255,255,255,.25);
+    }
+
+    /* ── Messages area ── */
+    .chat-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 24px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        background: #f0f2f5;
+    }
+
+    .chat-messages::-webkit-scrollbar {
+        width: 5px;
+    }
+
+    .chat-messages::-webkit-scrollbar-thumb {
+        background: rgba(0,0,0,.15);
+        border-radius: 4px;
+    }
+
+    /* Message bubbles */
+    .message-row {
+        display: flex;
+        max-width: 80%;
+        animation: fadeInMsg .3s ease;
+    }
+
+    @keyframes fadeInMsg {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .message-row.user {
+        align-self: flex-end;
+        flex-direction: row-reverse;
+    }
+
+    .message-row.assistant {
+        align-self: flex-start;
+    }
+
+    .message-bubble {
+        padding: 10px 16px;
+        border-radius: 18px;
+        font-size: .92rem;
+        line-height: 1.5;
+        word-break: break-word;
+        position: relative;
+    }
+
+    .message-row.user .message-bubble {
+        background: #0d6efd;
+        color: #fff;
+        border-bottom-right-radius: 4px;
+    }
+
+    .message-row.assistant .message-bubble {
+        background: #fff;
+        color: #1a1a1a;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08);
+    }
+
+    .message-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        font-size: .85rem;
+        margin-top: 4px;
+    }
+
+    .message-row.user .message-avatar {
+        margin-left: 8px;
+        background: #e3ecfc;
+        color: #0d6efd;
+    }
+
+    .message-row.assistant .message-avatar {
+        margin-right: 8px;
+        background: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .message-time {
+        font-size: .68rem;
+        margin-top: 4px;
+        opacity: .55;
+        text-align: right;
+    }
+
+    .message-row.assistant .message-time {
+        text-align: left;
+    }
+
+    /* Typing indicator */
+    .typing-indicator {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        padding: 14px 18px;
+        background: #fff;
+        border-radius: 18px;
+        border-bottom-left-radius: 4px;
+        box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        width: fit-content;
+    }
+
+    .typing-indicator span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #90a4ae;
+        animation: typingBounce 1.4s infinite;
+    }
+
+    .typing-indicator span:nth-child(2) { animation-delay: .2s; }
+    .typing-indicator span:nth-child(3) { animation-delay: .4s; }
+
+    @keyframes typingBounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-6px); }
+    }
+
+    /* Welcome state */
+    .chat-welcome {
+        text-align: center;
+        color: #78909c;
+        padding: 40px 20px;
+        margin: auto 0;
+    }
+
+    .chat-welcome i {
+        font-size: 3rem;
+        margin-bottom: 16px;
+        color: #0d6efd;
+        opacity: .4;
+    }
+
+    .chat-welcome h5 {
+        font-weight: 600;
+        color: #546e7a;
+    }
+
+    .chat-welcome p {
+        font-size: .9rem;
+        max-width: 400px;
+        margin: 8px auto 0;
+    }
+
+    /* ── Input area ── */
+    .chat-input-area {
+        padding: 16px 20px;
+        background: #fff;
+        border-top: 1px solid #e8eaed;
+        flex-shrink: 0;
+    }
+
+    .chat-input-wrapper {
+        display: flex;
+        align-items: flex-end;
+        gap: 10px;
+        background: #f0f2f5;
+        border-radius: 24px;
+        padding: 8px 8px 8px 20px;
+    }
+
+    .chat-input {
+        flex: 1;
+        border: none;
+        background: transparent;
+        outline: none;
+        font-size: .92rem;
+        padding: 6px 0;
+        resize: none;
+        max-height: 120px;
+        line-height: 1.4;
+        font-family: 'Inter', sans-serif;
+    }
+
+    .chat-input::placeholder {
+        color: #9e9e9e;
+    }
+
+    .btn-send {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        border: none;
+        background: #0d6efd;
+        color: #fff;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all .2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .btn-send:hover {
+        background: #0b5ed7;
+        transform: scale(1.05);
+    }
+
+    .btn-send:disabled {
+        background: #b0bec5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .chat-wrapper {
+            border-radius: 0;
+            height: calc(100vh - 76px);
+        }
+
+        .message-row {
+            max-width: 90%;
+        }
+
+        .chat-messages {
+            padding: 12px 14px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="chat-page">
+    <div class="chat-wrapper">
+        <!-- Header -->
+        <div class="chat-header">
+            <div class="chat-header-info">
+                <div class="chat-avatar">
+                    <i class="fas fa-robot"></i>
+                </div>
+                <div>
+                    <div class="chat-header-name">AI Медицинский ассистент</div>
+                    <div class="chat-header-status"><i class="fas fa-circle me-1" style="font-size:.5rem; color:#4ade80;"></i> Онлайн</div>
+                </div>
+            </div>
+            <button class="btn-clear-history" id="btnClearHistory">
+                <i class="fas fa-trash-alt me-1"></i> Очистить историю
+            </button>
+        </div>
+
+        <!-- Messages -->
+        <div class="chat-messages" id="chatMessages">
+            {% if chat_history and chat_history|length > 0 %}
+                {% for msg in chat_history %}
+                <div class="message-row {{ msg.role }}">
+                    <div class="message-avatar">
+                        {% if msg.role == 'user' %}
+                            <i class="fas fa-user"></i>
+                        {% else %}
+                            <i class="fas fa-robot"></i>
+                        {% endif %}
+                    </div>
+                    <div>
+                        <div class="message-bubble">{{ msg.content }}</div>
+                        <div class="message-time">{{ msg.timestamp if msg.timestamp else '' }}</div>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+                <div class="chat-welcome" id="chatWelcome">
+                    <i class="fas fa-robot d-block"></i>
+                    <h5>Здравствуйте!</h5>
+                    <p>Я ваш AI медицинский ассистент. Задайте мне вопрос о здоровье, симптомах или медицинских процедурах.</p>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Input -->
+        <div class="chat-input-area">
+            <div class="chat-input-wrapper">
+                <textarea class="chat-input" id="chatInput" rows="1"
+                          placeholder="Введите сообщение..." maxlength="2000"></textarea>
+                <button class="btn-send" id="btnSend" title="Отправить">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    const chatMessages = document.getElementById('chatMessages');
+    const chatInput    = document.getElementById('chatInput');
+    const btnSend      = document.getElementById('btnSend');
+    const btnClear     = document.getElementById('btnClearHistory');
+    const chatWelcome  = document.getElementById('chatWelcome');
+
+    let isSending = false;
+
+    // Scroll to bottom on load
+    scrollToBottom();
+
+    // ── Auto-resize textarea ──
+    chatInput.addEventListener('input', function() {
+        this.style.height = 'auto';
+        this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+    });
+
+    // ── Send on Enter (Shift+Enter for new line) ──
+    chatInput.addEventListener('keydown', function(e) {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+
+    btnSend.addEventListener('click', function() {
+        sendMessage();
+    });
+
+    // ── Send message ──
+    async function sendMessage() {
+        const text = chatInput.value.trim();
+        if (!text || isSending) return;
+
+        isSending = true;
+        btnSend.disabled = true;
+
+        // Remove welcome
+        if (chatWelcome) chatWelcome.remove();
+
+        // Add user bubble
+        appendMessage('user', text);
+
+        // Clear input
+        chatInput.value = '';
+        chatInput.style.height = 'auto';
+
+        // Show typing indicator
+        const typingEl = showTypingIndicator();
+
+        try {
+            const response = await fetch('/chatbot/send', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message: text })
+            });
+
+            if (!response.ok) {
+                throw new Error('Server error: ' + response.status);
+            }
+
+            const data = await response.json();
+
+            // Remove typing indicator
+            typingEl.remove();
+
+            // Add assistant message
+            appendMessage('assistant', data.response || data.message || 'Нет ответа.');
+
+        } catch (err) {
+            console.error('Send error:', err);
+            typingEl.remove();
+            appendMessage('assistant', 'Произошла ошибка при отправке сообщения. Пожалуйста, попробуйте снова.');
+        }
+
+        isSending = false;
+        btnSend.disabled = false;
+        chatInput.focus();
+    }
+
+    // ── Append message bubble ──
+    function appendMessage(role, text) {
+        const now = new Date();
+        const time = String(now.getHours()).padStart(2, '0') + ':' +
+                     String(now.getMinutes()).padStart(2, '0');
+
+        const row = document.createElement('div');
+        row.className = 'message-row ' + role;
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = role === 'user'
+            ? '<i class="fas fa-user"></i>'
+            : '<i class="fas fa-robot"></i>';
+
+        const content = document.createElement('div');
+
+        const bubble = document.createElement('div');
+        bubble.className = 'message-bubble';
+        bubble.textContent = text;
+
+        const timeEl = document.createElement('div');
+        timeEl.className = 'message-time';
+        timeEl.textContent = time;
+
+        content.appendChild(bubble);
+        content.appendChild(timeEl);
+        row.appendChild(avatar);
+        row.appendChild(content);
+
+        chatMessages.appendChild(row);
+        scrollToBottom();
+    }
+
+    // ── Typing indicator ──
+    function showTypingIndicator() {
+        const row = document.createElement('div');
+        row.className = 'message-row assistant';
+        row.id = 'typingRow';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'message-avatar';
+        avatar.innerHTML = '<i class="fas fa-robot"></i>';
+
+        const indicator = document.createElement('div');
+        indicator.className = 'typing-indicator';
+        indicator.innerHTML = '<span></span><span></span><span></span>';
+
+        row.appendChild(avatar);
+        row.appendChild(indicator);
+        chatMessages.appendChild(row);
+        scrollToBottom();
+
+        return row;
+    }
+
+    // ── Scroll to bottom ──
+    function scrollToBottom() {
+        requestAnimationFrame(function() {
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        });
+    }
+
+    // ── Clear history ──
+    btnClear.addEventListener('click', async function() {
+        if (!confirm('Вы уверены, что хотите очистить историю чата?')) return;
+
+        try {
+            const response = await fetch('/chatbot/clear', { method: 'POST' });
+            if (response.ok) {
+                window.location.reload();
+            } else {
+                alert('Ошибка при очистке истории.');
+            }
+        } catch (err) {
+            console.error('Clear error:', err);
+            alert('Ошибка при очистке истории.');
+        }
+    });
+
+})();
+</script>
+{% endblock %}

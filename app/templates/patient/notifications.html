@@ -1,0 +1,119 @@
+{% extends 'base.html' %}
+
+{% block title %}Уведомления{% endblock %}
+
+{% block extra_css %}
+<style>
+    .notification-item {
+        transition: all 0.2s ease;
+        border-left: 4px solid transparent;
+    }
+    .notification-item:hover {
+        background-color: #f8f9ff;
+    }
+    .notification-item.unread {
+        background-color: #f0f7ff;
+        border-left-color: #0d6efd;
+    }
+    .notification-item.read {
+        border-left-color: #e9ecef;
+    }
+    .notification-icon {
+        width: 42px;
+        height: 42px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+    .notification-icon.appointment { background: #e3f2fd; color: #1565c0; }
+    .notification-icon.reminder { background: #fff3e0; color: #e65100; }
+    .notification-icon.result { background: #e8f5e9; color: #2e7d32; }
+    .notification-icon.system { background: #eceff1; color: #546e7a; }
+    .notification-icon.default { background: #f3e5f5; color: #6a1b9a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Heading -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-bell me-2 text-primary"></i>Уведомления</h2>
+            <p class="text-muted mb-0">Все ваши уведомления</p>
+        </div>
+        <form method="POST" action="{{ url_for('patient.mark_all_notifications_read') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-outline-primary">
+                <i class="fas fa-check-double me-1"></i>Прочитать все
+            </button>
+        </form>
+    </div>
+
+    <!-- Notifications List -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for notification in notifications %}
+                <div class="list-group-item notification-item {{ 'unread' if not notification.is_read else 'read' }} py-3 px-4">
+                    <div class="d-flex align-items-start">
+                        <!-- Icon -->
+                        <div class="notification-icon {{ notification.type or 'default' }} me-3">
+                            {% if notification.type == 'appointment' %}
+                                <i class="fas fa-calendar-check"></i>
+                            {% elif notification.type == 'reminder' %}
+                                <i class="fas fa-bell"></i>
+                            {% elif notification.type == 'result' %}
+                                <i class="fas fa-file-medical"></i>
+                            {% elif notification.type == 'system' %}
+                                <i class="fas fa-cog"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle"></i>
+                            {% endif %}
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1 fw-semibold {% if not notification.is_read %}text-dark{% else %}text-muted{% endif %}">
+                                        {{ notification.title }}
+                                    </h6>
+                                    <p class="mb-1 small {% if not notification.is_read %}text-dark{% else %}text-muted{% endif %}">
+                                        {{ notification.message }}
+                                    </p>
+                                    <small class="text-muted">
+                                        <i class="fas fa-clock me-1"></i>{{ notification.created_at.strftime('%d.%m.%Y %H:%M') }}
+                                    </small>
+                                </div>
+                                <div class="ms-3 flex-shrink-0">
+                                    {% if not notification.is_read %}
+                                    <form method="POST" action="{{ url_for('patient.mark_notification_read', notification_id=notification.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary" title="Отметить как прочитанное">
+                                            <i class="fas fa-check"></i>
+                                        </button>
+                                    </form>
+                                    {% else %}
+                                    <span class="badge bg-light text-muted">
+                                        <i class="fas fa-check-double"></i>
+                                    </span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="list-group-item text-center py-5">
+                    <i class="fas fa-bell-slash fa-4x text-muted mb-3 d-block opacity-50"></i>
+                    <h5 class="text-muted">Нет уведомлений</h5>
+                    <p class="text-muted">У вас пока нет уведомлений</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

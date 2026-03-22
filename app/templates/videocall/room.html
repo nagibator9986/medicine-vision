@@ -1,0 +1,853 @@
+{% extends 'base.html' %}
+
+{% block title %}Видеоконсультация - MediPlatform{% endblock %}
+
+{% block extra_css %}
+<style>
+    /* Hide navbar and footer for immersive video experience */
+    .navbar, .app-footer, .flash-container {
+        display: none !important;
+    }
+
+    .main-content {
+        padding: 0 !important;
+        margin: 0 !important;
+        min-height: 100vh;
+    }
+
+    body {
+        background: #0f0f0f;
+        overflow: hidden;
+    }
+
+    /* ── Video layout ── */
+    .videocall-container {
+        position: fixed;
+        inset: 0;
+        background: #0f0f0f;
+        display: flex;
+        flex-direction: column;
+    }
+
+    /* Top participant bar */
+    .participant-bar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        background: linear-gradient(180deg, rgba(0,0,0,.75) 0%, transparent 100%);
+        padding: 16px 24px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #fff;
+        animation: slideDown .4s ease;
+    }
+
+    @keyframes slideDown {
+        from { opacity: 0; transform: translateY(-20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .participant-bar .participant-name {
+        font-weight: 600;
+        font-size: .95rem;
+    }
+
+    .participant-bar .participant-role {
+        font-size: .75rem;
+        opacity: .7;
+        text-transform: uppercase;
+        letter-spacing: .5px;
+    }
+
+    .call-timer {
+        font-family: 'Inter', monospace;
+        font-size: 1.1rem;
+        font-weight: 600;
+        background: rgba(255,255,255,.12);
+        padding: 6px 16px;
+        border-radius: 20px;
+        backdrop-filter: blur(8px);
+    }
+
+    .call-timer i {
+        color: #ef4444;
+        animation: pulse-dot 1.5s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% { opacity: 1; }
+        50% { opacity: .3; }
+    }
+
+    /* Video area */
+    .video-area {
+        flex: 1;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #remoteVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        background: #1a1a2e;
+        border-radius: 0;
+    }
+
+    .remote-placeholder {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255,255,255,.5);
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
+
+    .remote-placeholder i {
+        font-size: 5rem;
+        margin-bottom: 1rem;
+        opacity: .3;
+    }
+
+    .remote-placeholder span {
+        font-size: 1.1rem;
+        font-weight: 500;
+    }
+
+    /* Local video (PiP) */
+    .local-video-wrapper {
+        position: absolute;
+        bottom: 100px;
+        right: 24px;
+        width: 240px;
+        height: 180px;
+        z-index: 15;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 8px 32px rgba(0,0,0,.5);
+        border: 2px solid rgba(255,255,255,.15);
+        transition: all .3s ease;
+        cursor: grab;
+    }
+
+    .local-video-wrapper:hover {
+        border-color: rgba(255,255,255,.3);
+        box-shadow: 0 8px 40px rgba(0,0,0,.7);
+        transform: scale(1.03);
+    }
+
+    #localVideo {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        transform: scaleX(-1);
+        background: #1a1a2e;
+    }
+
+    .local-label {
+        position: absolute;
+        bottom: 8px;
+        left: 10px;
+        font-size: .7rem;
+        color: #fff;
+        background: rgba(0,0,0,.55);
+        padding: 2px 8px;
+        border-radius: 8px;
+        backdrop-filter: blur(4px);
+    }
+
+    /* ── Control bar ── */
+    .control-bar {
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 20;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        gap: 12px;
+        padding: 20px;
+        background: linear-gradient(0deg, rgba(0,0,0,.8) 0%, transparent 100%);
+        animation: slideUp .4s ease;
+    }
+
+    @keyframes slideUp {
+        from { opacity: 0; transform: translateY(20px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .ctrl-btn {
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        border: none;
+        font-size: 1.2rem;
+        color: #fff;
+        background: rgba(255,255,255,.15);
+        backdrop-filter: blur(12px);
+        cursor: pointer;
+        transition: all .2s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .ctrl-btn:hover {
+        background: rgba(255,255,255,.25);
+        transform: scale(1.08);
+    }
+
+    .ctrl-btn.active-off {
+        background: rgba(239, 68, 68, .7);
+    }
+
+    .ctrl-btn.active-off:hover {
+        background: rgba(239, 68, 68, .9);
+    }
+
+    .ctrl-btn.end-call {
+        width: 64px;
+        height: 64px;
+        background: #ef4444;
+        font-size: 1.4rem;
+        margin: 0 8px;
+    }
+
+    .ctrl-btn.end-call:hover {
+        background: #dc2626;
+        transform: scale(1.1);
+    }
+
+    .ctrl-btn.transcription-active {
+        background: rgba(59, 130, 246, .7);
+    }
+
+    .ctrl-btn.transcription-active:hover {
+        background: rgba(59, 130, 246, .9);
+    }
+
+    /* ── Transcription panel ── */
+    .transcription-panel {
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 360px;
+        background: rgba(15, 15, 15, .92);
+        backdrop-filter: blur(20px);
+        border-left: 1px solid rgba(255,255,255,.1);
+        z-index: 25;
+        display: flex;
+        flex-direction: column;
+        transform: translateX(100%);
+        transition: transform .35s cubic-bezier(.4, 0, .2, 1);
+    }
+
+    .transcription-panel.open {
+        transform: translateX(0);
+    }
+
+    .transcription-header {
+        padding: 16px 20px;
+        border-bottom: 1px solid rgba(255,255,255,.1);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        color: #fff;
+    }
+
+    .transcription-header h6 {
+        margin: 0;
+        font-weight: 600;
+    }
+
+    .transcription-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px 20px;
+        color: rgba(255,255,255,.8);
+        font-size: .88rem;
+        line-height: 1.7;
+    }
+
+    .transcription-body::-webkit-scrollbar {
+        width: 4px;
+    }
+
+    .transcription-body::-webkit-scrollbar-thumb {
+        background: rgba(255,255,255,.2);
+        border-radius: 4px;
+    }
+
+    .transcript-entry {
+        margin-bottom: 12px;
+        padding: 10px 14px;
+        background: rgba(255,255,255,.05);
+        border-radius: 10px;
+        border-left: 3px solid rgba(59, 130, 246, .5);
+    }
+
+    .transcript-time {
+        font-size: .7rem;
+        color: rgba(255,255,255,.4);
+        margin-bottom: 4px;
+    }
+
+    .close-panel-btn {
+        background: none;
+        border: none;
+        color: rgba(255,255,255,.6);
+        font-size: 1.1rem;
+        cursor: pointer;
+        padding: 4px;
+    }
+
+    .close-panel-btn:hover {
+        color: #fff;
+    }
+
+    /* ── Connection status ── */
+    .connection-status {
+        position: absolute;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 30;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: .85rem;
+        font-weight: 500;
+        backdrop-filter: blur(12px);
+        display: none;
+    }
+
+    .connection-status.connecting {
+        display: block;
+        background: rgba(245, 158, 11, .2);
+        color: #fbbf24;
+        border: 1px solid rgba(245, 158, 11, .3);
+    }
+
+    .connection-status.connected {
+        display: block;
+        background: rgba(34, 197, 94, .2);
+        color: #4ade80;
+        border: 1px solid rgba(34, 197, 94, .3);
+        animation: fadeOutDelay 3s forwards;
+    }
+
+    .connection-status.error {
+        display: block;
+        background: rgba(239, 68, 68, .2);
+        color: #f87171;
+        border: 1px solid rgba(239, 68, 68, .3);
+    }
+
+    @keyframes fadeOutDelay {
+        0%, 70% { opacity: 1; }
+        100% { opacity: 0; display: none; }
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+        .local-video-wrapper {
+            width: 140px;
+            height: 105px;
+            bottom: 100px;
+            right: 12px;
+        }
+
+        .transcription-panel {
+            width: 100%;
+        }
+
+        .ctrl-btn {
+            width: 48px;
+            height: 48px;
+            font-size: 1rem;
+        }
+
+        .ctrl-btn.end-call {
+            width: 56px;
+            height: 56px;
+        }
+
+        .participant-bar {
+            padding: 12px 16px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Hidden data -->
+<input type="hidden" id="roomId" value="{{ call.room_id }}">
+<input type="hidden" id="appointmentId" value="{{ call.appointment_id }}">
+
+<div class="videocall-container">
+    <!-- Top bar: participants & timer -->
+    <div class="participant-bar">
+        <div class="d-flex align-items-center gap-4">
+            <div>
+                <div class="participant-name"><i class="fas fa-user-md me-1"></i> {{ call.doctor_name }}</div>
+                <div class="participant-role">Врач</div>
+            </div>
+            <div class="text-center px-3" style="border-left: 1px solid rgba(255,255,255,.2); border-right: 1px solid rgba(255,255,255,.2);">
+                <i class="fas fa-video me-1" style="opacity:.5;"></i>
+            </div>
+            <div>
+                <div class="participant-name"><i class="fas fa-user me-1"></i> {{ call.patient_name }}</div>
+                <div class="participant-role">Пациент</div>
+            </div>
+        </div>
+        <div class="call-timer" id="callTimer">
+            <i class="fas fa-circle me-2" style="font-size:.5rem;"></i>
+            <span id="timerDisplay">00:00</span>
+        </div>
+    </div>
+
+    <!-- Connection status -->
+    <div class="connection-status connecting" id="connectionStatus">
+        <i class="fas fa-spinner fa-spin me-2"></i> Подключение...
+    </div>
+
+    <!-- Video area -->
+    <div class="video-area">
+        <video id="remoteVideo" autoplay playsinline></video>
+
+        <div class="remote-placeholder" id="remotePlaceholder">
+            <i class="fas fa-user-circle"></i>
+            <span>Ожидание подключения собеседника...</span>
+        </div>
+
+        <!-- Local video (PiP) -->
+        <div class="local-video-wrapper" id="localVideoWrapper">
+            <video id="localVideo" autoplay playsinline muted></video>
+            <div class="local-label"><i class="fas fa-user me-1"></i> Вы</div>
+        </div>
+    </div>
+
+    <!-- Control bar -->
+    <div class="control-bar">
+        <button class="ctrl-btn" id="btnToggleMic" title="Микрофон">
+            <i class="fas fa-microphone" id="micIcon"></i>
+        </button>
+        <button class="ctrl-btn" id="btnToggleCamera" title="Камера">
+            <i class="fas fa-video" id="cameraIcon"></i>
+        </button>
+        <button class="ctrl-btn end-call" id="btnEndCall" title="Завершить звонок">
+            <i class="fas fa-phone-slash"></i>
+        </button>
+        <button class="ctrl-btn" id="btnToggleTranscription" title="Транскрипция">
+            <i class="fas fa-closed-captioning"></i>
+        </button>
+    </div>
+
+    <!-- Transcription panel -->
+    <div class="transcription-panel" id="transcriptionPanel">
+        <div class="transcription-header">
+            <h6><i class="fas fa-closed-captioning me-2"></i>Транскрипция</h6>
+            <button class="close-panel-btn" id="closeTranscription">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="transcription-body" id="transcriptionBody">
+            <div class="text-center text-muted py-4" id="transcriptionEmpty">
+                <i class="fas fa-microphone-alt fa-2x mb-2 d-block" style="opacity:.3;"></i>
+                <span>Нажмите кнопку транскрипции, чтобы начать запись речи</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    'use strict';
+
+    // ── DOM elements ──
+    const remoteVideo   = document.getElementById('remoteVideo');
+    const localVideo    = document.getElementById('localVideo');
+    const remotePlaceholder = document.getElementById('remotePlaceholder');
+    const connectionStatus  = document.getElementById('connectionStatus');
+    const timerDisplay      = document.getElementById('timerDisplay');
+    const transcriptionBody = document.getElementById('transcriptionBody');
+    const transcriptionEmpty = document.getElementById('transcriptionEmpty');
+    const transcriptionPanel = document.getElementById('transcriptionPanel');
+
+    const btnToggleMic    = document.getElementById('btnToggleMic');
+    const btnToggleCamera = document.getElementById('btnToggleCamera');
+    const btnEndCall      = document.getElementById('btnEndCall');
+    const btnToggleTranscription = document.getElementById('btnToggleTranscription');
+    const closeTranscription     = document.getElementById('closeTranscription');
+
+    const micIcon    = document.getElementById('micIcon');
+    const cameraIcon = document.getElementById('cameraIcon');
+
+    const roomId        = document.getElementById('roomId').value;
+    const appointmentId = document.getElementById('appointmentId').value;
+
+    // ── State ──
+    let localStream      = null;
+    let peerConnection   = null;
+    let micEnabled       = true;
+    let cameraEnabled    = true;
+    let timerSeconds     = 0;
+    let timerInterval    = null;
+    let recognition      = null;
+    let transcriptionOn  = false;
+    let fullTranscript   = '';
+
+    // ── STUN/TURN servers ──
+    const iceConfig = {
+        iceServers: [
+            { urls: 'stun:stun.l.google.com:19302' },
+            { urls: 'stun:stun1.l.google.com:19302' },
+            { urls: 'stun:stun2.l.google.com:19302' }
+        ]
+    };
+
+    // ── Socket.IO ──
+    const socket = io({ transports: ['websocket', 'polling'] });
+
+    socket.on('connect', function() {
+        console.log('Socket connected, joining room:', roomId);
+        socket.emit('join_room', { room_id: roomId });
+        setConnectionStatus('connecting', 'Подключение к комнате...');
+    });
+
+    socket.on('user_joined', function(data) {
+        console.log('User joined:', data);
+        setConnectionStatus('connected', 'Собеседник подключился');
+        createOffer();
+    });
+
+    socket.on('offer', function(data) {
+        console.log('Received offer');
+        handleOffer(data.offer);
+    });
+
+    socket.on('answer', function(data) {
+        console.log('Received answer');
+        handleAnswer(data.answer);
+    });
+
+    socket.on('ice_candidate', function(data) {
+        handleIceCandidate(data.candidate);
+    });
+
+    socket.on('user_left', function(data) {
+        console.log('User left');
+        setConnectionStatus('error', 'Собеседник покинул звонок');
+        remotePlaceholder.style.display = 'flex';
+        remoteVideo.srcObject = null;
+    });
+
+    socket.on('disconnect', function() {
+        setConnectionStatus('error', 'Соединение потеряно');
+    });
+
+    // ── Connection status helper ──
+    function setConnectionStatus(type, text) {
+        connectionStatus.className = 'connection-status ' + type;
+        connectionStatus.innerHTML = (type === 'connecting'
+            ? '<i class="fas fa-spinner fa-spin me-2"></i>'
+            : type === 'connected'
+                ? '<i class="fas fa-check-circle me-2"></i>'
+                : '<i class="fas fa-exclamation-triangle me-2"></i>') + text;
+    }
+
+    // ── Get user media ──
+    async function initMedia() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({
+                video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+                audio: { echoCancellation: true, noiseSuppression: true }
+            });
+            localVideo.srcObject = localStream;
+        } catch (err) {
+            console.error('Media error:', err);
+            setConnectionStatus('error', 'Не удалось получить доступ к камере/микрофону');
+        }
+    }
+
+    // ── WebRTC ──
+    function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(iceConfig);
+
+        if (localStream) {
+            localStream.getTracks().forEach(track => {
+                peerConnection.addTrack(track, localStream);
+            });
+        }
+
+        peerConnection.ontrack = function(event) {
+            remoteVideo.srcObject = event.streams[0];
+            remotePlaceholder.style.display = 'none';
+        };
+
+        peerConnection.onicecandidate = function(event) {
+            if (event.candidate) {
+                socket.emit('ice_candidate', {
+                    room_id: roomId,
+                    candidate: event.candidate.toJSON()
+                });
+            }
+        };
+
+        peerConnection.oniceconnectionstatechange = function() {
+            const state = peerConnection.iceConnectionState;
+            if (state === 'connected' || state === 'completed') {
+                setConnectionStatus('connected', 'Подключено');
+                startTimer();
+            } else if (state === 'disconnected' || state === 'failed') {
+                setConnectionStatus('error', 'Соединение прервано');
+            }
+        };
+    }
+
+    async function createOffer() {
+        if (!peerConnection) createPeerConnection();
+        try {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            socket.emit('offer', { room_id: roomId, offer: offer });
+        } catch (err) {
+            console.error('Create offer error:', err);
+        }
+    }
+
+    async function handleOffer(offer) {
+        if (!peerConnection) createPeerConnection();
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('answer', { room_id: roomId, answer: answer });
+        } catch (err) {
+            console.error('Handle offer error:', err);
+        }
+    }
+
+    async function handleAnswer(answer) {
+        try {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        } catch (err) {
+            console.error('Handle answer error:', err);
+        }
+    }
+
+    function handleIceCandidate(candidate) {
+        if (peerConnection && candidate) {
+            peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch(function(err) {
+                console.error('ICE candidate error:', err);
+            });
+        }
+    }
+
+    // ── Timer ──
+    function startTimer() {
+        if (timerInterval) return;
+        timerInterval = setInterval(function() {
+            timerSeconds++;
+            const hrs  = Math.floor(timerSeconds / 3600);
+            const mins = Math.floor((timerSeconds % 3600) / 60);
+            const secs = timerSeconds % 60;
+            timerDisplay.textContent = (hrs > 0 ? String(hrs).padStart(2, '0') + ':' : '')
+                + String(mins).padStart(2, '0') + ':' + String(secs).padStart(2, '0');
+        }, 1000);
+    }
+
+    // ── Toggle microphone ──
+    btnToggleMic.addEventListener('click', function() {
+        if (!localStream) return;
+        micEnabled = !micEnabled;
+        localStream.getAudioTracks().forEach(function(track) { track.enabled = micEnabled; });
+        micIcon.className = micEnabled ? 'fas fa-microphone' : 'fas fa-microphone-slash';
+        btnToggleMic.classList.toggle('active-off', !micEnabled);
+    });
+
+    // ── Toggle camera ──
+    btnToggleCamera.addEventListener('click', function() {
+        if (!localStream) return;
+        cameraEnabled = !cameraEnabled;
+        localStream.getVideoTracks().forEach(function(track) { track.enabled = cameraEnabled; });
+        cameraIcon.className = cameraEnabled ? 'fas fa-video' : 'fas fa-video-slash';
+        btnToggleCamera.classList.toggle('active-off', !cameraEnabled);
+    });
+
+    // ── End call ──
+    btnEndCall.addEventListener('click', function() {
+        endCall();
+    });
+
+    async function endCall() {
+        // Stop timer
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+
+        // Stop transcription
+        if (recognition && transcriptionOn) {
+            recognition.stop();
+            transcriptionOn = false;
+        }
+
+        // Send transcription if any
+        if (fullTranscript.trim()) {
+            try {
+                await fetch('/videocall/transcribe/' + roomId, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ transcription: fullTranscript })
+                });
+            } catch (err) {
+                console.error('Transcription save error:', err);
+            }
+        }
+
+        // Stop local streams
+        if (localStream) {
+            localStream.getTracks().forEach(function(track) { track.stop(); });
+        }
+
+        // Close peer connection
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+
+        // Notify server
+        socket.emit('leave_room', { room_id: roomId });
+        socket.disconnect();
+
+        // POST end call
+        try {
+            await fetch('/videocall/end/' + roomId, { method: 'POST' });
+        } catch (err) {
+            console.error('End call error:', err);
+        }
+
+        // Redirect
+        window.location.href = document.referrer || '/';
+    }
+
+    // ── Speech Recognition (Transcription) ──
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+    btnToggleTranscription.addEventListener('click', function() {
+        if (!SpeechRecognition) {
+            alert('Ваш браузер не поддерживает распознавание речи.');
+            return;
+        }
+
+        transcriptionOn = !transcriptionOn;
+        btnToggleTranscription.classList.toggle('transcription-active', transcriptionOn);
+
+        // Toggle panel visibility
+        transcriptionPanel.classList.toggle('open', transcriptionOn);
+
+        if (transcriptionOn) {
+            startRecognition();
+        } else if (recognition) {
+            recognition.stop();
+        }
+    });
+
+    closeTranscription.addEventListener('click', function() {
+        transcriptionPanel.classList.remove('open');
+    });
+
+    function startRecognition() {
+        recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.continuous = true;
+        recognition.interimResults = true;
+
+        recognition.onresult = function(event) {
+            let interimText = '';
+            let finalText   = '';
+
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+                const transcript = event.results[i][0].transcript;
+                if (event.results[i].isFinal) {
+                    finalText += transcript + ' ';
+                } else {
+                    interimText += transcript;
+                }
+            }
+
+            if (finalText) {
+                fullTranscript += finalText;
+                appendTranscriptEntry(finalText.trim());
+            }
+        };
+
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error:', event.error);
+            if (event.error === 'not-allowed') {
+                setConnectionStatus('error', 'Доступ к микрофону для распознавания отклонён');
+            }
+        };
+
+        recognition.onend = function() {
+            // Restart if still enabled
+            if (transcriptionOn) {
+                try { recognition.start(); } catch(e) {}
+            }
+        };
+
+        try {
+            recognition.start();
+            transcriptionEmpty.style.display = 'none';
+        } catch(e) {
+            console.error('Failed to start recognition:', e);
+        }
+    }
+
+    function appendTranscriptEntry(text) {
+        const now = new Date();
+        const time = String(now.getHours()).padStart(2, '0') + ':' +
+                     String(now.getMinutes()).padStart(2, '0') + ':' +
+                     String(now.getSeconds()).padStart(2, '0');
+
+        const entry = document.createElement('div');
+        entry.className = 'transcript-entry';
+        entry.innerHTML = '<div class="transcript-time">' + time + '</div><div>' + escapeHtml(text) + '</div>';
+        transcriptionBody.appendChild(entry);
+        transcriptionBody.scrollTop = transcriptionBody.scrollHeight;
+    }
+
+    function escapeHtml(str) {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    }
+
+    // ── Handle page unload ──
+    window.addEventListener('beforeunload', function() {
+        if (localStream) {
+            localStream.getTracks().forEach(function(track) { track.stop(); });
+        }
+        if (peerConnection) peerConnection.close();
+        socket.emit('leave_room', { room_id: roomId });
+    });
+
+    // ── Init ──
+    initMedia().then(function() {
+        createPeerConnection();
+    });
+
+})();
+</script>
+{% endblock %}

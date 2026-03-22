@@ -1,0 +1,188 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ 'Редактировать врача' if doctor else 'Добавить врача' }} - MediPlatform{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex align-items-center mb-4">
+                <a href="{{ url_for('clinic.doctors') }}" class="btn btn-outline-secondary me-3">
+                    <i class="fas fa-arrow-left"></i>
+                </a>
+                <div>
+                    <h2 class="fw-bold mb-1">
+                        <i class="fas fa-user-md text-primary me-2"></i>
+                        {{ 'Редактировать врача' if doctor else 'Добавить врача' }}
+                    </h2>
+                    <p class="text-muted mb-0">
+                        {{ 'Измените данные врача' if doctor else 'Заполните данные нового врача' }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <div class="card border-0 shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" enctype="multipart/form-data">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Avatar -->
+                        <div class="mb-4 text-center">
+                            <label class="form-label fw-semibold d-block">Фото врача</label>
+                            {% if doctor and doctor.avatar %}
+                            <div class="mb-3">
+                                <img src="{{ url_for('static', filename='uploads/avatars/' + doctor.avatar) }}"
+                                     alt="Текущее фото"
+                                     class="rounded-circle"
+                                     style="width: 120px; height: 120px; object-fit: cover;">
+                            </div>
+                            {% else %}
+                            <div class="mb-3">
+                                <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center"
+                                     style="width: 120px; height: 120px;">
+                                    <i class="fas fa-user-md fa-3x text-primary"></i>
+                                </div>
+                            </div>
+                            {% endif %}
+                            {{ form.avatar(class="form-control", accept="image/*") }}
+                            {% if form.avatar.errors %}
+                                {% for error in form.avatar.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Account Info -->
+                        <h5 class="fw-bold mb-3">
+                            <i class="fas fa-key text-muted me-2"></i>Данные аккаунта
+                        </h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="email" class="form-label fw-semibold">Email <span class="text-danger">*</span></label>
+                                {{ form.email(class="form-control", placeholder="doctor@example.com") }}
+                                {% if form.email.errors %}
+                                    {% for error in form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="password" class="form-label fw-semibold">
+                                    Пароль
+                                    {% if doctor %}
+                                    <span class="text-muted fw-normal small">(оставьте пустым, чтобы не менять)</span>
+                                    {% else %}
+                                    <span class="text-danger">*</span>
+                                    {% endif %}
+                                </label>
+                                {{ form.password(class="form-control", placeholder="Введите пароль") }}
+                                {% if form.password.errors %}
+                                    {% for error in form.password.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Personal Info -->
+                        <h5 class="fw-bold mb-3">
+                            <i class="fas fa-user text-muted me-2"></i>Личные данные
+                        </h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="first_name" class="form-label fw-semibold">Имя <span class="text-danger">*</span></label>
+                                {{ form.first_name(class="form-control", placeholder="Иван") }}
+                                {% if form.first_name.errors %}
+                                    {% for error in form.first_name.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="last_name" class="form-label fw-semibold">Фамилия <span class="text-danger">*</span></label>
+                                {{ form.last_name(class="form-control", placeholder="Иванов") }}
+                                {% if form.last_name.errors %}
+                                    {% for error in form.last_name.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label fw-semibold">Телефон</label>
+                                {{ form.phone(class="form-control", placeholder="+7 (999) 123-45-67") }}
+                                {% if form.phone.errors %}
+                                    {% for error in form.phone.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <hr class="my-4">
+
+                        <!-- Professional Info -->
+                        <h5 class="fw-bold mb-3">
+                            <i class="fas fa-stethoscope text-muted me-2"></i>Профессиональные данные
+                        </h5>
+                        <div class="row g-3 mb-4">
+                            <div class="col-md-6">
+                                <label for="specialization" class="form-label fw-semibold">Специализация <span class="text-danger">*</span></label>
+                                {{ form.specialization(class="form-control", placeholder="Терапевт") }}
+                                {% if form.specialization.errors %}
+                                    {% for error in form.specialization.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="experience_years" class="form-label fw-semibold">Стаж (лет)</label>
+                                {{ form.experience_years(class="form-control", placeholder="5") }}
+                                {% if form.experience_years.errors %}
+                                    {% for error in form.experience_years.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-3">
+                                <label for="consultation_price" class="form-label fw-semibold">Цена консультации (&#8381;)</label>
+                                {{ form.consultation_price(class="form-control", placeholder="2000") }}
+                                {% if form.consultation_price.errors %}
+                                    {% for error in form.consultation_price.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label for="bio" class="form-label fw-semibold">Биография</label>
+                                {{ form.bio(class="form-control", rows="4", placeholder="Расскажите о враче, его опыте и квалификации...") }}
+                                {% if form.bio.errors %}
+                                    {% for error in form.bio.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Submit -->
+                        <div class="d-flex justify-content-end gap-2 pt-3">
+                            <a href="{{ url_for('clinic.doctors') }}" class="btn btn-outline-secondary">
+                                <i class="fas fa-times me-1"></i> Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save me-1"></i>
+                                {{ 'Сохранить изменения' if doctor else 'Добавить врача' }}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

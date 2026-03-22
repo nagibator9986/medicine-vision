@@ -1,0 +1,107 @@
+{% extends 'base.html' %}
+
+{% block title %}Вход в систему{% endblock %}
+
+{% block content %}
+<style>
+    .auth-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 50%, #6610f2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+    .auth-card {
+        width: 100%;
+        max-width: 420px;
+        border: none;
+        border-radius: 1.25rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+    .auth-card .card-body {
+        padding: 2.5rem 2rem;
+    }
+    .auth-icon {
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.25rem;
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+    }
+    .auth-icon i {
+        font-size: 2rem;
+        color: #fff;
+    }
+    .btn-gradient {
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        border: none;
+        color: #fff;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.05rem;
+        border-radius: 0.75rem;
+        transition: opacity 0.2s, transform 0.2s;
+    }
+    .btn-gradient:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+        color: #fff;
+    }
+    .form-floating > .form-control:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+</style>
+
+<div class="auth-wrapper">
+    <div class="card auth-card">
+        <div class="card-body">
+            <div class="auth-icon">
+                <i class="bi bi-heart-pulse"></i>
+            </div>
+            <h3 class="text-center fw-bold mb-4">Вход в систему</h3>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('auth.login') }}">
+                {{ form.hidden_tag() if form is defined }}
+
+                <div class="form-floating mb-3">
+                    <input type="email" class="form-control" id="email" name="email" placeholder="Email" required>
+                    <label for="email">Email</label>
+                </div>
+
+                <div class="form-floating mb-4">
+                    <input type="password" class="form-control" id="password" name="password" placeholder="Пароль" required>
+                    <label for="password">Пароль</label>
+                </div>
+
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="bi bi-box-arrow-in-right me-2"></i>Войти
+                    </button>
+                </div>
+            </form>
+
+            <p class="text-center text-muted mb-0">
+                Нет аккаунта?
+                <a href="{{ url_for('auth.register') }}" class="fw-semibold text-decoration-none">Зарегистрируйтесь</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

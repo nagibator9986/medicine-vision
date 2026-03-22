@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Записи клиники - MediPlatform{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-calendar-check text-primary me-2"></i>Записи клиники
+            </h2>
+            <p class="text-muted mb-0">Управление записями на прием</p>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('clinic.appointments') }}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Статус</label>
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        <option value="pending" {{ 'selected' if request.args.get('status') == 'pending' }}>Ожидает</option>
+                        <option value="confirmed" {{ 'selected' if request.args.get('status') == 'confirmed' }}>Подтверждена</option>
+                        <option value="completed" {{ 'selected' if request.args.get('status') == 'completed' }}>Завершена</option>
+                        <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Отменена</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Дата</label>
+                    <input type="date" name="date" class="form-control"
+                           value="{{ request.args.get('date', '') }}">
+                </div>
+                <div class="col-md-4">
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary flex-grow-1">
+                            <i class="fas fa-filter me-1"></i> Фильтровать
+                        </button>
+                        <a href="{{ url_for('clinic.appointments') }}" class="btn btn-outline-secondary">
+                            <i class="fas fa-times"></i>
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Appointments Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if appointments.items %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Дата и время</th>
+                            <th>Пациент</th>
+                            <th>Врач</th>
+                            <th>Статус</th>
+                            <th class="text-center">Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in appointments.items %}
+                        <tr>
+                            <td class="ps-4">
+                                <div>
+                                    <i class="far fa-calendar me-1 text-muted"></i>
+                                    {{ appointment.date.strftime('%d.%m.%Y') if appointment.date else '' }}
+                                </div>
+                                <small class="text-muted">
+                                    <i class="far fa-clock me-1"></i>
+                                    {{ appointment.time_slot.strftime('%H:%M') if appointment.time_slot else '--:--' }}
+                                </small>
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-light p-2 me-2">
+                                        <i class="fas fa-user text-muted"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-semibold">{{ appointment.patient.full_name }}</h6>
+                                        <small class="text-muted">{{ appointment.patient.email }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <div>
+                                    <h6 class="mb-0 fw-semibold">{{ appointment.doctor.full_name }}</h6>
+                                    <small class="text-muted">{{ appointment.doctor.specialization or '' }}</small>
+                                </div>
+                            </td>
+                            <td>
+                                {% if appointment.status == 'confirmed' %}
+                                    <span class="badge bg-success bg-opacity-10 text-success">
+                                        <i class="fas fa-check-circle me-1"></i>Подтверждена
+                                    </span>
+                                {% elif appointment.status == 'pending' %}
+                                    <span class="badge bg-warning bg-opacity-10 text-warning">
+                                        <i class="fas fa-clock me-1"></i>Ожидает
+                                    </span>
+                                {% elif appointment.status == 'completed' %}
+                                    <span class="badge bg-info bg-opacity-10 text-info">
+                                        <i class="fas fa-check-double me-1"></i>Завершена
+                                    </span>
+                                {% elif appointment.status == 'cancelled' %}
+                                    <span class="badge bg-danger bg-opacity-10 text-danger">
+                                        <i class="fas fa-times-circle me-1"></i>Отменена
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary bg-opacity-10 text-secondary">{{ appointment.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <div class="dropdown">
+                                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
+                                        <i class="fas fa-ellipsis-v"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        {% if appointment.status == 'pending' %}
+                                        <li>
+                                            <a class="dropdown-item text-success"
+                                               href="{{ url_for('clinic.appointments') }}">
+                                                <i class="fas fa-check me-2"></i>Подтвердить
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        {% if appointment.status in ['pending', 'confirmed'] %}
+                                        <li>
+                                            <a class="dropdown-item text-danger"
+                                               href="{{ url_for('clinic.appointments') }}">
+                                                <i class="fas fa-times me-2"></i>Отменить
+                                            </a>
+                                        </li>
+                                        {% endif %}
+                                        <li>
+                                            <a class="dropdown-item"
+                                               href="{{ url_for('clinic.appointments') }}">
+                                                <i class="fas fa-eye me-2"></i>Подробнее
+                                            </a>
+                                        </li>
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% if appointments.pages > 1 %}
+            <div class="card-footer bg-white border-top">
+                <nav aria-label="Навигация по страницам">
+                    <ul class="pagination justify-content-center mb-0">
+                        <li class="page-item {{ 'disabled' if not appointments.has_prev }}">
+                            <a class="page-link" href="{{ url_for('clinic.appointments', page=appointments.prev_num, status=request.args.get('status', ''), date=request.args.get('date', '')) }}">
+                                <i class="fas fa-chevron-left"></i>
+                            </a>
+                        </li>
+                        {% for page_num in appointments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                            {% if page_num %}
+                            <li class="page-item {{ 'active' if page_num == appointments.page }}">
+                                <a class="page-link" href="{{ url_for('clinic.appointments', page=page_num, status=request.args.get('status', ''), date=request.args.get('date', '')) }}">
+                                    {{ page_num }}
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled">
+                                <span class="page-link">...</span>
+                            </li>
+                            {% endif %}
+                        {% endfor %}
+                        <li class="page-item {{ 'disabled' if not appointments.has_next }}">
+                            <a class="page-link" href="{{ url_for('clinic.appointments', page=appointments.next_num, status=request.args.get('status', ''), date=request.args.get('date', '')) }}">
+                                <i class="fas fa-chevron-right"></i>
+                            </a>
+                        </li>
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
+
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-calendar-times fa-4x mb-3 d-block"></i>
+                <h5>Записей не найдено</h5>
+                {% if request.args.get('status') or request.args.get('date') %}
+                <p class="mb-3">Попробуйте изменить параметры фильтрации</p>
+                <a href="{{ url_for('clinic.appointments') }}" class="btn btn-outline-primary">
+                    <i class="fas fa-times me-1"></i> Сбросить фильтры
+                </a>
+                {% else %}
+                <p class="mb-0">Записи появятся, когда пациенты запишутся на прием</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

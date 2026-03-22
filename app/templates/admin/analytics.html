@@ -1,0 +1,228 @@
+{% extends 'base.html' %}
+
+{% block title %}Аналитика{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h2 class="mb-4"><i class="fas fa-chart-bar me-2"></i>Аналитика платформы</h2>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-primary border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Клиники</div>
+                            <div class="h3 fw-bold mb-0">{{ total_clinics }}</div>
+                        </div>
+                        <div class="text-primary opacity-50">
+                            <i class="fas fa-hospital fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-success border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Врачи</div>
+                            <div class="h3 fw-bold mb-0">{{ total_doctors }}</div>
+                        </div>
+                        <div class="text-success opacity-50">
+                            <i class="fas fa-user-md fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-info border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Пациенты</div>
+                            <div class="h3 fw-bold mb-0">{{ total_patients }}</div>
+                        </div>
+                        <div class="text-info opacity-50">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-warning border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Записи</div>
+                            <div class="h3 fw-bold mb-0">{{ total_appointments }}</div>
+                        </div>
+                        <div class="text-warning opacity-50">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Appointment Status Breakdown -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-pie me-2"></i>Статусы записей</h5>
+                </div>
+                <div class="card-body">
+                    {% if status_stats %}
+                        {% set total = status_stats.values() | sum %}
+                        {% for status, count in status_stats.items() %}
+                        <div class="mb-3">
+                            <div class="d-flex justify-content-between align-items-center mb-1">
+                                <span>
+                                    {% if status == 'scheduled' %}
+                                        <i class="fas fa-clock text-primary me-1"></i>Запланированные
+                                    {% elif status == 'completed' %}
+                                        <i class="fas fa-check-circle text-success me-1"></i>Завершённые
+                                    {% elif status == 'cancelled' %}
+                                        <i class="fas fa-times-circle text-danger me-1"></i>Отменённые
+                                    {% elif status == 'in_progress' %}
+                                        <i class="fas fa-spinner text-warning me-1"></i>В процессе
+                                    {% else %}
+                                        <i class="fas fa-circle text-secondary me-1"></i>{{ status }}
+                                    {% endif %}
+                                </span>
+                                <span class="fw-bold">{{ count }}</span>
+                            </div>
+                            <div class="progress" style="height: 8px;">
+                                {% if status == 'scheduled' %}
+                                    {% set bar_class = 'bg-primary' %}
+                                {% elif status == 'completed' %}
+                                    {% set bar_class = 'bg-success' %}
+                                {% elif status == 'cancelled' %}
+                                    {% set bar_class = 'bg-danger' %}
+                                {% elif status == 'in_progress' %}
+                                    {% set bar_class = 'bg-warning' %}
+                                {% else %}
+                                    {% set bar_class = 'bg-secondary' %}
+                                {% endif %}
+                                <div class="progress-bar {{ bar_class }}" role="progressbar"
+                                     style="width: {{ (count / total * 100) if total > 0 else 0 }}%"
+                                     aria-valuenow="{{ count }}" aria-valuemin="0" aria-valuemax="{{ total }}">
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+
+                        <hr>
+                        <div class="d-flex justify-content-between">
+                            <span class="text-muted">Всего записей</span>
+                            <span class="fw-bold">{{ total }}</span>
+                        </div>
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-chart-pie fa-2x mb-2 d-block"></i>
+                            Нет данных о записях
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Top Clinics -->
+        <div class="col-lg-6">
+            <div class="card shadow-sm h-100">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-trophy me-2"></i>Топ клиник по записям</h5>
+                </div>
+                <div class="card-body">
+                    {% if top_clinics %}
+                        {% for clinic_data in top_clinics %}
+                        <div class="d-flex align-items-center {% if not loop.last %}mb-3 pb-3 border-bottom{% endif %}">
+                            <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-3" style="width: 48px; height: 48px; min-width: 48px;">
+                                <span class="fw-bold text-primary">{{ loop.index }}</span>
+                            </div>
+                            <div class="flex-grow-1">
+                                <div class="fw-bold">{{ clinic_data.clinic.name }}</div>
+                                <small class="text-muted">{{ clinic_data.clinic.address or 'Адрес не указан' }}</small>
+                            </div>
+                            <div class="text-end">
+                                <span class="badge bg-primary rounded-pill fs-6">{{ clinic_data.appointment_count }}</span>
+                                <div class="small text-muted">записей</div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center text-muted py-4">
+                            <i class="fas fa-hospital fa-2x mb-2 d-block"></i>
+                            Нет данных о клиниках
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Monthly Trend -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-line me-2"></i>Динамика по месяцам</h5>
+                </div>
+                <div class="card-body">
+                    {% if monthly_data %}
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Месяц</th>
+                                    <th class="text-center">Записи</th>
+                                    <th class="text-center">Новые пациенты</th>
+                                    <th class="text-center">Новые врачи</th>
+                                    <th style="width: 40%;">График записей</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% set max_appointments = monthly_data | map(attribute='appointments') | max %}
+                                {% for month in monthly_data %}
+                                <tr>
+                                    <td class="fw-bold">{{ month.label }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary rounded-pill">{{ month.appointments }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info rounded-pill">{{ month.new_patients }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success rounded-pill">{{ month.new_doctors }}</span>
+                                    </td>
+                                    <td>
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar bg-primary" role="progressbar"
+                                                 style="width: {{ (month.appointments / max_appointments * 100) if max_appointments > 0 else 0 }}%">
+                                                {{ month.appointments }}
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center text-muted py-4">
+                        <i class="fas fa-chart-line fa-2x mb-2 d-block"></i>
+                        Нет данных за указанный период
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

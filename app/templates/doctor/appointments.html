@@ -1,0 +1,143 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои записи{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-calendar-check me-2"></i>Мои записи</h2>
+    </div>
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('doctor.appointments') }}" class="row g-3 align-items-end">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Статус</label>
+                    <select name="status" class="form-select">
+                        <option value="">Все статусы</option>
+                        <option value="scheduled" {% if request.args.get('status') == 'scheduled' %}selected{% endif %}>Запланирована</option>
+                        <option value="in_progress" {% if request.args.get('status') == 'in_progress' %}selected{% endif %}>В процессе</option>
+                        <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>Завершена</option>
+                        <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>Отменена</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Дата</label>
+                    <input type="date" name="date" class="form-control" value="{{ request.args.get('date', '') }}">
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter me-1"></i>Фильтр
+                    </button>
+                    <a href="{{ url_for('doctor.appointments') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Сбросить
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Appointments Table -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Дата и время</th>
+                            <th>Пациент</th>
+                            <th>Симптомы</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for appointment in appointments.items %}
+                        <tr>
+                            <td>
+                                <div class="fw-semibold">{{ appointment.appointment_date.strftime('%d.%m.%Y') }}</div>
+                                <small class="text-muted">{{ appointment.appointment_date.strftime('%H:%M') }}</small>
+                            </td>
+                            <td>{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</td>
+                            <td>
+                                {% if appointment.symptoms %}
+                                    {{ appointment.symptoms[:60] }}{% if appointment.symptoms|length > 60 %}...{% endif %}
+                                {% else %}
+                                    <span class="text-muted">Не указаны</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if appointment.status == 'scheduled' %}
+                                    <span class="badge bg-primary">Запланирована</span>
+                                {% elif appointment.status == 'in_progress' %}
+                                    <span class="badge bg-warning text-dark">В процессе</span>
+                                {% elif appointment.status == 'completed' %}
+                                    <span class="badge bg-success">Завершена</span>
+                                {% elif appointment.status == 'cancelled' %}
+                                    <span class="badge bg-danger">Отменена</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ appointment.status }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="btn-group btn-group-sm">
+                                    {% if appointment.status == 'scheduled' %}
+                                        <a href="{{ url_for('doctor.start_video_call', appointment_id=appointment.id) }}" class="btn btn-success" title="Начать прием">
+                                            <i class="fas fa-video"></i>
+                                        </a>
+                                    {% endif %}
+                                    {% if appointment.status in ['in_progress', 'completed'] %}
+                                        <a href="{{ url_for('doctor.create_prescription', appointment_id=appointment.id) }}" class="btn btn-outline-primary" title="Назначение">
+                                            <i class="fas fa-prescription"></i>
+                                        </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('doctor.patient_detail', patient_id=appointment.patient.id) }}" class="btn btn-outline-info" title="Карта пациента">
+                                        <i class="fas fa-user"></i>
+                                    </a>
+                                </div>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="text-center text-muted py-4">
+                                <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                                Записи не найдены
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Pagination -->
+    {% if appointments.pages > 1 %}
+    <nav class="mt-4" aria-label="Навигация по страницам">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not appointments.has_prev %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('doctor.appointments', page=appointments.prev_num, status=request.args.get('status', ''), date=request.args.get('date', '')) }}">
+                    <i class="fas fa-chevron-left"></i>
+                </a>
+            </li>
+            {% for page_num in appointments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                {% if page_num %}
+                    <li class="page-item {% if page_num == appointments.page %}active{% endif %}">
+                        <a class="page-link" href="{{ url_for('doctor.appointments', page=page_num, status=request.args.get('status', ''), date=request.args.get('date', '')) }}">{{ page_num }}</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not appointments.has_next %}disabled{% endif %}">
+                <a class="page-link" href="{{ url_for('doctor.appointments', page=appointments.next_num, status=request.args.get('status', ''), date=request.args.get('date', '')) }}">
+                    <i class="fas fa-chevron-right"></i>
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+
+{% block title %}Пациенты клиники - MediPlatform{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-users text-primary me-2"></i>Пациенты клиники
+            </h2>
+            <p class="text-muted mb-0">Список пациентов, обращавшихся в клинику</p>
+        </div>
+    </div>
+
+    <!-- Search -->
+    <div class="card border-0 shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('clinic.patients') }}">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="fas fa-search text-muted"></i>
+                    </span>
+                    <input type="text" name="search" class="form-control border-start-0 ps-0"
+                           placeholder="Поиск по имени, email или телефону..."
+                           value="{{ request.args.get('search', '') }}">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Найти
+                    </button>
+                    {% if request.args.get('search') %}
+                    <a href="{{ url_for('clinic.patients') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Сбросить
+                    </a>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Patients Table -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-body p-0">
+            {% if patients %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4">Пациент</th>
+                            <th>Email</th>
+                            <th>Телефон</th>
+                            <th>Дата рождения</th>
+                            <th class="text-center">Записей</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for patient in patients %}
+                        <tr>
+                            <td class="ps-4">
+                                <div class="d-flex align-items-center">
+                                    <div class="rounded-circle bg-success bg-opacity-10 d-flex align-items-center justify-content-center me-3"
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-success"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-0 fw-semibold">{{ patient.full_name }}</h6>
+                                    </div>
+                                </div>
+                            </td>
+                            <td>
+                                <a href="mailto:{{ patient.email }}" class="text-decoration-none">
+                                    {{ patient.email }}
+                                </a>
+                            </td>
+                            <td>{{ patient.phone or 'Не указан' }}</td>
+                            <td>
+                                {% if patient.birth_date %}
+                                    {{ patient.birth_date.strftime('%d.%m.%Y') }}
+                                {% else %}
+                                    <span class="text-muted">Не указана</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-primary bg-opacity-10 text-primary">
+                                    {{ patient.appointments_count|default(0) }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-users fa-4x mb-3 d-block"></i>
+                {% if request.args.get('search') %}
+                <h5>Пациенты не найдены</h5>
+                <p class="mb-0">Попробуйте изменить параметры поиска</p>
+                {% else %}
+                <h5>Пациентов пока нет</h5>
+                <p class="mb-0">Пациенты появятся после первых записей</p>
+                {% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,216 @@
+{% extends 'base.html' %}
+
+{% block title %}Настройки клиники - MediPlatform{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="mb-4">
+                <h2 class="fw-bold mb-1">
+                    <i class="fas fa-cog text-primary me-2"></i>Настройки клиники
+                </h2>
+                <p class="text-muted mb-0">Управление информацией о клинике</p>
+            </div>
+
+            <!-- Form -->
+            <form method="POST" enctype="multipart/form-data">
+                {{ form.hidden_tag() }}
+
+                <!-- General Info -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 pt-4 pb-2">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-hospital text-muted me-2"></i>Основная информация
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for="name" class="form-label fw-semibold">Название клиники <span class="text-danger">*</span></label>
+                                {{ form.name(class="form-control", placeholder="Название клиники") }}
+                                {% if form.name.errors %}
+                                    {% for error in form.name.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label for="description" class="form-label fw-semibold">Описание</label>
+                                {{ form.description(class="form-control", rows="4", placeholder="Расскажите о вашей клинике...") }}
+                                {% if form.description.errors %}
+                                    {% for error in form.description.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label for="address" class="form-label fw-semibold">Адрес</label>
+                                {{ form.address(class="form-control", placeholder="г. Москва, ул. Примерная, д. 1") }}
+                                {% if form.address.errors %}
+                                    {% for error in form.address.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Contact Info -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 pt-4 pb-2">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-address-book text-muted me-2"></i>Контактная информация
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="phone" class="form-label fw-semibold">Телефон</label>
+                                {{ form.phone(class="form-control", placeholder="+7 (999) 123-45-67") }}
+                                {% if form.phone.errors %}
+                                    {% for error in form.phone.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="email" class="form-label fw-semibold">Email</label>
+                                {{ form.email(class="form-control", placeholder="clinic@example.com") }}
+                                {% if form.email.errors %}
+                                    {% for error in form.email.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-12">
+                                <label for="website" class="form-label fw-semibold">Веб-сайт</label>
+                                {{ form.website(class="form-control", placeholder="https://example.com") }}
+                                {% if form.website.errors %}
+                                    {% for error in form.website.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Logo -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 pt-4 pb-2">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-image text-muted me-2"></i>Логотип
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        {% if clinic and clinic.logo %}
+                        <div class="mb-3">
+                            <label class="form-label fw-semibold">Текущий логотип</label>
+                            <div class="p-3 bg-light rounded text-center">
+                                <img src="{{ url_for('static', filename='uploads/logos/' + clinic.logo) }}"
+                                     alt="Логотип клиники"
+                                     class="img-fluid rounded"
+                                     style="max-height: 120px;">
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <label for="logo" class="form-label fw-semibold">
+                                {{ 'Изменить логотип' if clinic and clinic.logo else 'Загрузить логотип' }}
+                            </label>
+                            {{ form.logo(class="form-control", accept="image/*") }}
+                            {% if form.logo.errors %}
+                                {% for error in form.logo.errors %}
+                                <div class="text-danger small mt-1">{{ error }}</div>
+                                {% endfor %}
+                            {% endif %}
+                            <div class="form-text">Рекомендуемый размер: 300x300 пикселей. Форматы: PNG, JPG, SVG.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Appearance -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 pt-4 pb-2">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-palette text-muted me-2"></i>Внешний вид
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="primary_color" class="form-label fw-semibold">Основной цвет</label>
+                                <div class="input-group">
+                                    {{ form.primary_color(class="form-control form-control-color", type="color") }}
+                                    <span class="input-group-text bg-white flex-grow-1">Основной цвет</span>
+                                </div>
+                                {% if form.primary_color.errors %}
+                                    {% for error in form.primary_color.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="secondary_color" class="form-label fw-semibold">Дополнительный цвет</label>
+                                <div class="input-group">
+                                    {{ form.secondary_color(class="form-control form-control-color", type="color") }}
+                                    <span class="input-group-text bg-white flex-grow-1">Дополнительный цвет</span>
+                                </div>
+                                {% if form.secondary_color.errors %}
+                                    {% for error in form.secondary_color.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Working Hours -->
+                <div class="card border-0 shadow-sm mb-4">
+                    <div class="card-header bg-white border-0 pt-4 pb-2">
+                        <h5 class="fw-bold mb-0">
+                            <i class="fas fa-clock text-muted me-2"></i>Рабочие часы
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="working_hours_start" class="form-label fw-semibold">Начало работы</label>
+                                {{ form.working_hours_start(class="form-control", type="time") }}
+                                {% if form.working_hours_start.errors %}
+                                    {% for error in form.working_hours_start.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                            <div class="col-md-6">
+                                <label for="working_hours_end" class="form-label fw-semibold">Окончание работы</label>
+                                {{ form.working_hours_end(class="form-control", type="time") }}
+                                {% if form.working_hours_end.errors %}
+                                    {% for error in form.working_hours_end.errors %}
+                                    <div class="text-danger small mt-1">{{ error }}</div>
+                                    {% endfor %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit -->
+                <div class="d-flex justify-content-end gap-2 mb-4">
+                    <a href="{{ url_for('clinic.dashboard') }}" class="btn btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i> Отмена
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save me-1"></i> Сохранить настройки
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Медицинская карта{% endblock %}
+
+{% block extra_css %}
+<style>
+    .record-item {
+        transition: all 0.2s ease;
+        border-radius: 8px;
+    }
+    .record-item:hover {
+        background-color: #f8f9ff;
+    }
+    .record-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    .record-icon.diagnosis { background: #e8f5e9; color: #2e7d32; }
+    .record-icon.prescription { background: #e3f2fd; color: #1565c0; }
+    .record-icon.lab_result { background: #fce4ec; color: #c62828; }
+    .record-icon.consultation { background: #fff3e0; color: #e65100; }
+    .record-icon.procedure { background: #f3e5f5; color: #6a1b9a; }
+    .record-icon.default { background: #eceff1; color: #546e7a; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Heading -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-file-medical me-2 text-primary"></i>Медицинская карта</h2>
+            <p class="text-muted mb-0">Все ваши медицинские записи в одном месте</p>
+        </div>
+    </div>
+
+    <!-- Filter by Type -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body py-2">
+            <div class="d-flex flex-wrap gap-2">
+                <a href="{{ url_for('patient.medical_records') }}"
+                   class="btn btn-sm {% if not request.args.get('type') %}btn-primary{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                    <i class="fas fa-list me-1"></i>Все
+                </a>
+                <a href="{{ url_for('patient.medical_records', type='diagnosis') }}"
+                   class="btn btn-sm {% if request.args.get('type') == 'diagnosis' %}btn-success{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                    <i class="fas fa-stethoscope me-1"></i>Диагнозы
+                </a>
+                <a href="{{ url_for('patient.medical_records', type='prescription') }}"
+                   class="btn btn-sm {% if request.args.get('type') == 'prescription' %}btn-info{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                    <i class="fas fa-prescription me-1"></i>Назначения
+                </a>
+                <a href="{{ url_for('patient.medical_records', type='lab_result') }}"
+                   class="btn btn-sm {% if request.args.get('type') == 'lab_result' %}btn-danger{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                    <i class="fas fa-flask me-1"></i>Анализы
+                </a>
+                <a href="{{ url_for('patient.medical_records', type='consultation') }}"
+                   class="btn btn-sm {% if request.args.get('type') == 'consultation' %}btn-warning{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                    <i class="fas fa-comments me-1"></i>Консультации
+                </a>
+                <a href="{{ url_for('patient.medical_records', type='procedure') }}"
+                   class="btn btn-sm {% if request.args.get('type') == 'procedure' %}btn-purple{% else %}btn-outline-secondary{% endif %} rounded-pill">
+                    <i class="fas fa-syringe me-1"></i>Процедуры
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Records List -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="list-group list-group-flush">
+                {% for record in records %}
+                <div class="list-group-item record-item py-3 px-4">
+                    <div class="d-flex align-items-start">
+                        <!-- Icon -->
+                        <div class="record-icon {{ record.record_type or 'default' }} me-3 flex-shrink-0">
+                            {% if record.record_type == 'diagnosis' %}
+                                <i class="fas fa-stethoscope"></i>
+                            {% elif record.record_type == 'prescription' %}
+                                <i class="fas fa-prescription"></i>
+                            {% elif record.record_type == 'lab_result' %}
+                                <i class="fas fa-flask"></i>
+                            {% elif record.record_type == 'consultation' %}
+                                <i class="fas fa-comments"></i>
+                            {% elif record.record_type == 'procedure' %}
+                                <i class="fas fa-syringe"></i>
+                            {% else %}
+                                <i class="fas fa-file-medical"></i>
+                            {% endif %}
+                        </div>
+
+                        <!-- Content -->
+                        <div class="flex-grow-1">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1 fw-semibold">{{ record.title }}</h6>
+                                    <p class="text-muted small mb-1">
+                                        <i class="fas fa-user-md me-1"></i>{{ record.doctor.first_name }} {{ record.doctor.last_name }}
+                                    </p>
+                                </div>
+                                <small class="text-muted">
+                                    <i class="fas fa-calendar me-1"></i>{{ record.created_at.strftime('%d.%m.%Y') }}
+                                </small>
+                            </div>
+                            {% if record.content %}
+                            <p class="text-muted small mb-0 mt-1">
+                                {{ record.content[:150] }}{% if record.content|length > 150 %}...{% endif %}
+                            </p>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="list-group-item text-center py-5">
+                    <i class="fas fa-folder-open fa-4x text-muted mb-3 d-block opacity-50"></i>
+                    <h5 class="text-muted">Нет медицинских записей</h5>
+                    <p class="text-muted">Записи появятся после визитов к врачам</p>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

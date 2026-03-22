@@ -1,0 +1,203 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель врача{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Welcome -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-user-md me-2"></i>Добро пожаловать, {{ current_user.first_name }} {{ current_user.last_name }}!</h2>
+        <div>
+            <a href="{{ url_for('doctor.appointments') }}" class="btn btn-outline-primary">
+                <i class="fas fa-calendar-alt me-1"></i>Все записи
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-primary border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Записи сегодня</div>
+                            <div class="h3 fw-bold mb-0">{{ today_appointments|length }}</div>
+                        </div>
+                        <div class="text-primary opacity-50">
+                            <i class="fas fa-calendar-day fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-info border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Всего записей</div>
+                            <div class="h3 fw-bold mb-0">{{ total_appointments }}</div>
+                        </div>
+                        <div class="text-info opacity-50">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-success border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Завершено</div>
+                            <div class="h3 fw-bold mb-0">{{ completed_appointments }}</div>
+                        </div>
+                        <div class="text-success opacity-50">
+                            <i class="fas fa-check-circle fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-warning border-4 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Пациентов</div>
+                            <div class="h3 fw-bold mb-0">{{ unique_patients }}</div>
+                        </div>
+                        <div class="text-warning opacity-50">
+                            <i class="fas fa-users fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Today's Appointments -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-clock me-2"></i>Записи на сегодня</h5>
+                    <span class="badge bg-primary rounded-pill">{{ today_appointments|length }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Время</th>
+                                    <th>Пациент</th>
+                                    <th>Симптомы</th>
+                                    <th>Статус</th>
+                                    <th>Действие</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in today_appointments %}
+                                <tr>
+                                    <td>{{ appointment.appointment_date.strftime('%H:%M') }}</td>
+                                    <td>{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</td>
+                                    <td>
+                                        {% if appointment.symptoms %}
+                                            {{ appointment.symptoms[:50] }}{% if appointment.symptoms|length > 50 %}...{% endif %}
+                                        {% else %}
+                                            <span class="text-muted">Не указаны</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if appointment.status == 'scheduled' %}
+                                            <span class="badge bg-primary">Запланирована</span>
+                                        {% elif appointment.status == 'in_progress' %}
+                                            <span class="badge bg-warning text-dark">В процессе</span>
+                                        {% elif appointment.status == 'completed' %}
+                                            <span class="badge bg-success">Завершена</span>
+                                        {% elif appointment.status == 'cancelled' %}
+                                            <span class="badge bg-danger">Отменена</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ appointment.status }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if appointment.status == 'scheduled' %}
+                                            <a href="{{ url_for('doctor.start_video_call', appointment_id=appointment.id) }}" class="btn btn-sm btn-success">
+                                                <i class="fas fa-video me-1"></i>Начать прием
+                                            </a>
+                                        {% elif appointment.status == 'in_progress' %}
+                                            <a href="{{ url_for('doctor.start_video_call', appointment_id=appointment.id) }}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-video me-1"></i>Продолжить
+                                            </a>
+                                        {% elif appointment.status == 'completed' %}
+                                            <span class="text-muted small">Завершена</span>
+                                        {% else %}
+                                            <span class="text-muted small">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">
+                                        <i class="fas fa-calendar-times fa-2x mb-2 d-block"></i>
+                                        На сегодня записей нет
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Upcoming Appointments -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2"></i>Ближайшие записи</h5>
+                    <a href="{{ url_for('doctor.appointments') }}" class="btn btn-sm btn-outline-primary">Все</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for appointment in upcoming_appointments %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1">{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</h6>
+                                    <small class="text-muted">
+                                        <i class="fas fa-calendar me-1"></i>{{ appointment.appointment_date.strftime('%d.%m.%Y') }}
+                                        <i class="fas fa-clock ms-2 me-1"></i>{{ appointment.appointment_date.strftime('%H:%M') }}
+                                    </small>
+                                </div>
+                                <div>
+                                    {% if appointment.status == 'scheduled' %}
+                                        <span class="badge bg-primary">Запланирована</span>
+                                    {% elif appointment.status == 'in_progress' %}
+                                        <span class="badge bg-warning text-dark">В процессе</span>
+                                    {% elif appointment.status == 'completed' %}
+                                        <span class="badge bg-success">Завершена</span>
+                                    {% elif appointment.status == 'cancelled' %}
+                                        <span class="badge bg-danger">Отменена</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">{{ appointment.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center text-muted py-4">
+                            <i class="fas fa-calendar-check fa-2x mb-2 d-block"></i>
+                            Нет предстоящих записей
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

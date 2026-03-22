@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Дневник здоровья{% endblock %}
+
+{% block extra_css %}
+<style>
+    .health-entry {
+        border-left: 3px solid #0d6efd;
+        transition: all 0.2s ease;
+    }
+    .health-entry:hover {
+        background-color: #f8f9ff;
+    }
+    .tip-card {
+        border-radius: 12px;
+        transition: all 0.2s ease;
+        border: none;
+    }
+    .tip-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
+    }
+    .tip-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.3rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Heading -->
+    <div class="mb-4">
+        <h2 class="mb-1"><i class="fas fa-heartbeat me-2 text-danger"></i>Дневник здоровья</h2>
+        <p class="text-muted mb-0">Ведите записи о своем самочувствии</p>
+    </div>
+
+    <div class="row g-4">
+        <!-- Add New Entry -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-plus-circle me-2 text-success"></i>Новая запись</h5>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('patient.health_tracker') }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="entry_date" class="form-label fw-semibold">Дата</label>
+                            <input type="date" name="entry_date" id="entry_date" class="form-control"
+                                   value="{{ today }}" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="notes" class="form-label fw-semibold">Симптомы / Заметки</label>
+                            <textarea name="notes" id="notes" class="form-control" rows="5"
+                                      placeholder="Опишите ваше самочувствие, симптомы, принятые лекарства..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-success w-100">
+                            <i class="fas fa-save me-1"></i>Сохранить запись
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Health Tips -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-lightbulb me-2 text-warning"></i>Советы по здоровью</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-start">
+                                <div class="tip-icon bg-success bg-opacity-10 text-success me-3">
+                                    <i class="fas fa-apple-alt"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-semibold">Правильное питание</h6>
+                                    <p class="text-muted small mb-0">Употребляйте больше фруктов и овощей, пейте не менее 2 литров воды в день</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-start">
+                                <div class="tip-icon bg-primary bg-opacity-10 text-primary me-3">
+                                    <i class="fas fa-running"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-semibold">Физическая активность</h6>
+                                    <p class="text-muted small mb-0">Уделяйте не менее 30 минут в день умеренной физической нагрузке</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-start">
+                                <div class="tip-icon bg-info bg-opacity-10 text-info me-3">
+                                    <i class="fas fa-bed"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-semibold">Здоровый сон</h6>
+                                    <p class="text-muted small mb-0">Спите 7-8 часов в сутки, ложитесь и вставайте в одно время</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="list-group-item py-3">
+                            <div class="d-flex align-items-start">
+                                <div class="tip-icon bg-warning bg-opacity-10 text-warning me-3">
+                                    <i class="fas fa-spa"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-1 fw-semibold">Управление стрессом</h6>
+                                    <p class="text-muted small mb-0">Практикуйте медитацию, дыхательные упражнения и прогулки на свежем воздухе</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- History -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-history me-2 text-primary"></i>История записей</h5>
+                    <span class="badge bg-primary rounded-pill">{{ records|length if records else 0 }}</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for record in records %}
+                        <div class="list-group-item health-entry py-3 px-4">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div class="d-flex align-items-center">
+                                    <i class="fas fa-calendar-day text-primary me-2"></i>
+                                    <strong>{{ record.entry_date.strftime('%d.%m.%Y') if record.entry_date else record.created_at.strftime('%d.%m.%Y') }}</strong>
+                                </div>
+                                <small class="text-muted">
+                                    {{ record.created_at.strftime('%H:%M') }}
+                                </small>
+                            </div>
+                            <p class="mb-0 text-muted">{{ record.content or record.notes }}</p>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center py-5">
+                            <i class="fas fa-book-medical fa-4x text-muted mb-3 d-block opacity-50"></i>
+                            <h5 class="text-muted">Нет записей</h5>
+                            <p class="text-muted">Начните вести дневник здоровья</p>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,269 @@
+{% extends 'base.html' %}
+
+{% block title %}Статистика клиники - MediPlatform{% endblock %}
+
+{% block extra_css %}
+<style>
+    .bar-chart {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        height: 200px;
+        padding-top: 20px;
+    }
+    .bar-chart .bar-wrapper {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        height: 100%;
+        justify-content: flex-end;
+    }
+    .bar-chart .bar {
+        width: 100%;
+        max-width: 50px;
+        background: linear-gradient(180deg, var(--bs-primary), #4dabf7);
+        border-radius: 6px 6px 0 0;
+        transition: height 0.5s ease;
+        min-height: 4px;
+    }
+    .bar-chart .bar-value {
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+    .bar-chart .bar-label {
+        font-size: 0.7rem;
+        color: #6c757d;
+        margin-top: 6px;
+        text-align: center;
+    }
+    .star-rating .fas.fa-star,
+    .star-rating .fas.fa-star-half-alt {
+        color: #ffc107;
+    }
+    .star-rating .far.fa-star {
+        color: #ffc107;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-chart-bar text-primary me-2"></i>Статистика клиники
+            </h2>
+            <p class="text-muted mb-0">Обзор ключевых показателей</p>
+        </div>
+        <a href="{{ url_for('clinic.dashboard') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i> Назад
+        </a>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                            <i class="fas fa-user-md fa-2x text-primary"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Всего врачей</h6>
+                            <h3 class="fw-bold mb-0">{{ total_doctors }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                            <i class="fas fa-users fa-2x text-success"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Всего пациентов</h6>
+                            <h3 class="fw-bold mb-0">{{ total_patients }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-warning bg-opacity-10 p-3 me-3">
+                            <i class="fas fa-calendar-check fa-2x text-warning"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Всего записей</h6>
+                            <h3 class="fw-bold mb-0">{{ total_appointments }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                            <i class="fas fa-ruble-sign fa-2x text-info"></i>
+                        </div>
+                        <div>
+                            <h6 class="text-muted mb-1">Общий доход</h6>
+                            <h3 class="fw-bold mb-0">{{ total_revenue }} &#8381;</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4 mb-4">
+        <!-- Average Rating -->
+        <div class="col-lg-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-star text-warning me-2"></i>Средний рейтинг
+                    </h5>
+                </div>
+                <div class="card-body text-center py-4">
+                    <div class="display-3 fw-bold text-primary mb-2">
+                        {{ average_rating|default(0)|round(1) }}
+                    </div>
+                    <div class="star-rating mb-3">
+                        {% set avg = average_rating|default(0)|round(1) %}
+                        {% for i in range(5) %}
+                            {% if i < avg|int %}
+                                <i class="fas fa-star fa-2x"></i>
+                            {% elif i < avg %}
+                                <i class="fas fa-star-half-alt fa-2x"></i>
+                            {% else %}
+                                <i class="far fa-star fa-2x"></i>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                    <p class="text-muted mb-0">На основе отзывов пациентов</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Monthly Revenue Chart -->
+        <div class="col-lg-8">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-header bg-white border-0 pt-4 pb-2">
+                    <h5 class="fw-bold mb-0">
+                        <i class="fas fa-chart-line text-primary me-2"></i>Доход по месяцам
+                    </h5>
+                </div>
+                <div class="card-body">
+                    {% if monthly_revenue %}
+                    <div class="bar-chart">
+                        {% set max_revenue = monthly_revenue|map(attribute='revenue')|max %}
+                        {% for month in monthly_revenue %}
+                        <div class="bar-wrapper">
+                            <span class="bar-value">{{ month.revenue|int }} &#8381;</span>
+                            <div class="bar"
+                                 style="height: {{ (month.revenue / max_revenue * 100) if max_revenue > 0 else 0 }}%;">
+                            </div>
+                            <span class="bar-label">{{ month.label }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <div class="text-center py-5 text-muted">
+                        <i class="fas fa-chart-bar fa-3x mb-3 d-block"></i>
+                        <p class="mb-0">Данные о доходах пока отсутствуют</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Doctors -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-4 pb-2">
+            <h5 class="fw-bold mb-0">
+                <i class="fas fa-trophy text-warning me-2"></i>Лучшие врачи
+            </h5>
+        </div>
+        <div class="card-body p-0">
+            {% if top_doctors %}
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="ps-4" style="width: 50px;">#</th>
+                            <th>Врач</th>
+                            <th class="text-center">Количество записей</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for doctor in top_doctors %}
+                        <tr>
+                            <td class="ps-4">
+                                {% if loop.index == 1 %}
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="fas fa-trophy"></i>
+                                    </span>
+                                {% elif loop.index == 2 %}
+                                    <span class="badge bg-secondary">
+                                        <i class="fas fa-medal"></i>
+                                    </span>
+                                {% elif loop.index == 3 %}
+                                    <span class="badge" style="background-color: #cd7f32;">
+                                        <i class="fas fa-medal"></i>
+                                    </span>
+                                {% else %}
+                                    <span class="text-muted fw-semibold">{{ loop.index }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center">
+                                    {% if doctor.avatar %}
+                                    <img src="{{ url_for('static', filename='uploads/avatars/' + doctor.avatar) }}"
+                                         alt="{{ doctor.full_name }}"
+                                         class="rounded-circle me-3"
+                                         style="width: 40px; height: 40px; object-fit: cover;">
+                                    {% else %}
+                                    <div class="rounded-circle bg-primary bg-opacity-10 d-flex align-items-center justify-content-center me-3"
+                                         style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user-md text-primary"></i>
+                                    </div>
+                                    {% endif %}
+                                    <div>
+                                        <h6 class="mb-0 fw-semibold">{{ doctor.full_name }}</h6>
+                                        <small class="text-muted">{{ doctor.specialization or '' }}</small>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-primary bg-opacity-10 text-primary fs-6">
+                                    {{ doctor.appointments_count }}
+                                </span>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center py-5 text-muted">
+                <i class="fas fa-user-md fa-3x mb-3 d-block"></i>
+                <p class="mb-0">Данные о врачах пока отсутствуют</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

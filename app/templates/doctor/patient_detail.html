@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+
+{% block title %}Пациент - {{ patient.first_name }} {{ patient.last_name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="fas fa-user me-2"></i>Карта пациента</h2>
+        <div>
+            <a href="{{ url_for('doctor.create_medical_record', patient_id=patient.id) }}" class="btn btn-primary me-2">
+                <i class="fas fa-plus me-1"></i>Добавить мед. запись
+            </a>
+            <a href="{{ url_for('doctor.appointments') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Назад
+            </a>
+        </div>
+    </div>
+
+    <!-- Patient Info Card -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-white">
+            <h5 class="mb-0"><i class="fas fa-id-card me-2"></i>Информация о пациенте</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <table class="table table-borderless mb-0">
+                        <tr>
+                            <td class="fw-semibold text-muted" style="width: 40%;">ФИО</td>
+                            <td>{{ patient.first_name }} {{ patient.last_name }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Email</td>
+                            <td>{{ patient.email }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Телефон</td>
+                            <td>{{ patient.phone or 'Не указан' }}</td>
+                        </tr>
+                    </table>
+                </div>
+                <div class="col-md-6">
+                    <table class="table table-borderless mb-0">
+                        <tr>
+                            <td class="fw-semibold text-muted" style="width: 40%;">Дата рождения</td>
+                            <td>{{ patient.birth_date.strftime('%d.%m.%Y') if patient.birth_date else 'Не указана' }}</td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Пол</td>
+                            <td>
+                                {% if patient.gender == 'male' %}
+                                    Мужской
+                                {% elif patient.gender == 'female' %}
+                                    Женский
+                                {% else %}
+                                    Не указан
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td class="fw-semibold text-muted">Адрес</td>
+                            <td>{{ patient.address or 'Не указан' }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Medical Records -->
+        <div class="col-lg-7">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-medical me-2"></i>Медицинские записи</h5>
+                    <a href="{{ url_for('doctor.create_medical_record', patient_id=patient.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-plus me-1"></i>Добавить
+                    </a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Тип</th>
+                                    <th>Название</th>
+                                    <th>Дата</th>
+                                    <th>Содержание</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for record in medical_records %}
+                                <tr>
+                                    <td>
+                                        <span class="badge bg-info">{{ record.record_type }}</span>
+                                    </td>
+                                    <td>{{ record.title }}</td>
+                                    <td>{{ record.created_at.strftime('%d.%m.%Y') }}</td>
+                                    <td>
+                                        {% if record.content %}
+                                            {{ record.content[:80] }}{% if record.content|length > 80 %}...{% endif %}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% else %}
+                                <tr>
+                                    <td colspan="4" class="text-center text-muted py-4">
+                                        <i class="fas fa-folder-open fa-2x mb-2 d-block"></i>
+                                        Медицинские записи отсутствуют
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Prescriptions -->
+        <div class="col-lg-5">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-prescription me-2"></i>Назначения</h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Дата приема</th>
+                                    <th>Диагноз</th>
+                                    <th>Препараты</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for appointment in appointment_history %}
+                                    {% if appointment.prescription %}
+                                    <tr>
+                                        <td>{{ appointment.appointment_date.strftime('%d.%m.%Y') }}</td>
+                                        <td>
+                                            {% if appointment.prescription.diagnosis %}
+                                                {{ appointment.prescription.diagnosis[:50] }}{% if appointment.prescription.diagnosis|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if appointment.prescription.medications %}
+                                                {{ appointment.prescription.medications[:50] }}{% if appointment.prescription.medications|length > 50 %}...{% endif %}
+                                            {% else %}
+                                                <span class="text-muted">-</span>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">
+                                        <i class="fas fa-prescription-bottle fa-2x mb-2 d-block"></i>
+                                        Назначения отсутствуют
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

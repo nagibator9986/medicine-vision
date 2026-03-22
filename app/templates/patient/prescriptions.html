@@ -1,0 +1,105 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои назначения{% endblock %}
+
+{% block extra_css %}
+<style>
+    .prescription-card {
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    .prescription-card:hover {
+        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
+    }
+    .medication-item {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin-bottom: 0.5rem;
+    }
+    .section-divider {
+        border-left: 3px solid #0d6efd;
+        padding-left: 1rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Heading -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1"><i class="fas fa-prescription-bottle-alt me-2 text-primary"></i>Мои назначения</h2>
+            <p class="text-muted mb-0">Все назначения от ваших врачей</p>
+        </div>
+    </div>
+
+    <!-- Prescriptions -->
+    <div class="row g-4">
+        {% for prescription in prescriptions %}
+        <div class="col-lg-6">
+            <div class="card prescription-card shadow-sm h-100">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3 text-center" style="width: 42px; height: 42px;">
+                            <i class="fas fa-user-md text-primary mt-1"></i>
+                        </div>
+                        <div>
+                            <h6 class="mb-0 fw-semibold">{{ prescription.doctor.first_name }} {{ prescription.doctor.last_name }}</h6>
+                            <small class="text-muted">{{ prescription.doctor.specialization or 'Врач' }}</small>
+                        </div>
+                    </div>
+                    <small class="text-muted">
+                        <i class="fas fa-calendar me-1"></i>{{ prescription.created_at.strftime('%d.%m.%Y') }}
+                    </small>
+                </div>
+                <div class="card-body">
+                    <!-- Diagnosis -->
+                    {% if prescription.diagnosis %}
+                    <div class="section-divider mb-3">
+                        <h6 class="text-uppercase small fw-bold text-muted mb-1">Диагноз</h6>
+                        <p class="mb-0">{{ prescription.diagnosis }}</p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Medications -->
+                    {% if prescription.medications %}
+                    <div class="mb-3">
+                        <h6 class="text-uppercase small fw-bold text-muted mb-2">
+                            <i class="fas fa-pills me-1"></i>Лекарства
+                        </h6>
+                        {% for medication in prescription.medications %}
+                        <div class="medication-item">
+                            <div class="d-flex align-items-center">
+                                <i class="fas fa-capsules text-primary me-2"></i>
+                                <span>{{ medication }}</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Recommendations -->
+                    {% if prescription.recommendations %}
+                    <div class="section-divider">
+                        <h6 class="text-uppercase small fw-bold text-muted mb-1">Рекомендации</h6>
+                        <p class="mb-0 text-muted">{{ prescription.recommendations }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-prescription-bottle fa-4x text-muted mb-3 d-block opacity-50"></i>
+                    <h5 class="text-muted">Нет назначений</h5>
+                    <p class="text-muted">Назначения появятся после приемов у врачей</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,234 @@
+{% extends 'base.html' %}
+
+{% block title %}Панель пациента{% endblock %}
+
+{% block extra_css %}
+<style>
+    .stat-card {
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .stat-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.12) !important;
+    }
+    .quick-action-btn {
+        transition: all 0.2s ease;
+        border-radius: 12px;
+        padding: 1.2rem;
+    }
+    .quick-action-btn:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 0.4rem 1rem rgba(0,0,0,0.1);
+    }
+    .appointment-card {
+        border-left: 4px solid transparent;
+        transition: all 0.2s ease;
+    }
+    .appointment-card:hover {
+        background-color: #f8f9ff;
+    }
+    .appointment-card.status-scheduled {
+        border-left-color: #0d6efd;
+    }
+    .appointment-card.status-in_progress {
+        border-left-color: #ffc107;
+    }
+    .appointment-card.status-completed {
+        border-left-color: #198754;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Welcome -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-1">
+                <i class="fas fa-hand-holding-heart me-2 text-primary"></i>
+                Добро пожаловать, {{ current_user.first_name }}!
+            </h2>
+            <p class="text-muted mb-0">Ваш личный медицинский кабинет</p>
+        </div>
+        <div>
+            <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Записаться к врачу
+            </a>
+        </div>
+    </div>
+
+    <!-- Stats Cards -->
+    <div class="row g-4 mb-4">
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-primary border-4 shadow-sm h-100 stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Записи</div>
+                            <div class="h3 fw-bold mb-0">{{ total_appointments }}</div>
+                        </div>
+                        <div class="text-primary opacity-50">
+                            <i class="fas fa-calendar-check fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-info border-4 shadow-sm h-100 stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Предстоящие</div>
+                            <div class="h3 fw-bold mb-0">{{ upcoming_count }}</div>
+                        </div>
+                        <div class="text-info opacity-50">
+                            <i class="fas fa-clock fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-success border-4 shadow-sm h-100 stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Мед. записи</div>
+                            <div class="h3 fw-bold mb-0">{{ records_count }}</div>
+                        </div>
+                        <div class="text-success opacity-50">
+                            <i class="fas fa-file-medical fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-xl-3 col-md-6">
+            <div class="card border-start border-warning border-4 shadow-sm h-100 stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <div class="text-muted text-uppercase small fw-bold">Уведомления</div>
+                            <div class="h3 fw-bold mb-0">{{ unread_notifications }}</div>
+                        </div>
+                        <div class="text-warning opacity-50">
+                            <i class="fas fa-bell fa-2x"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row g-4">
+        <!-- Upcoming Appointments -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-calendar-alt me-2 text-primary"></i>Предстоящие приемы</h5>
+                    <a href="{{ url_for('patient.appointments') }}" class="btn btn-sm btn-outline-primary">Все записи</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for appointment in upcoming_appointments %}
+                        <div class="list-group-item appointment-card status-{{ appointment.status }} py-3">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="d-flex align-items-start">
+                                    <div class="bg-light rounded-circle p-2 me-3 text-center" style="width: 48px; height: 48px;">
+                                        <i class="fas fa-user-md text-primary fa-lg mt-1"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1 fw-semibold">{{ appointment.doctor.first_name }} {{ appointment.doctor.last_name }}</h6>
+                                        <p class="text-muted small mb-1">{{ appointment.doctor.specialization or 'Врач' }}</p>
+                                        <div class="small text-muted">
+                                            <i class="fas fa-calendar me-1"></i>{{ appointment.appointment_date.strftime('%d.%m.%Y') }}
+                                            <i class="fas fa-clock ms-2 me-1"></i>{{ appointment.appointment_date.strftime('%H:%M') }}
+                                        </div>
+                                    </div>
+                                </div>
+                                <div class="text-end">
+                                    {% if appointment.status == 'scheduled' %}
+                                        <span class="badge bg-primary mb-2 d-block">Запланирована</span>
+                                    {% elif appointment.status == 'in_progress' %}
+                                        <span class="badge bg-warning text-dark mb-2 d-block">В процессе</span>
+                                        <a href="{{ url_for('videocall.start', appointment_id=appointment.id) }}" class="btn btn-sm btn-success">
+                                            <i class="fas fa-video me-1"></i>Присоединиться
+                                        </a>
+                                    {% elif appointment.status == 'completed' %}
+                                        <span class="badge bg-success mb-2 d-block">Завершена</span>
+                                    {% elif appointment.status == 'cancelled' %}
+                                        <span class="badge bg-danger mb-2 d-block">Отменена</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary mb-2 d-block">{{ appointment.status }}</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center text-muted py-5">
+                            <i class="fas fa-calendar-times fa-3x mb-3 d-block opacity-50"></i>
+                            <p class="mb-2">Нет предстоящих приемов</p>
+                            <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-sm btn-primary">
+                                <i class="fas fa-plus me-1"></i>Записаться к врачу
+                            </a>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <!-- Recent Medical Records -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="fas fa-file-medical me-2 text-success"></i>Мед. записи</h5>
+                    <a href="{{ url_for('patient.medical_records') }}" class="btn btn-sm btn-outline-success">Все</a>
+                </div>
+                <div class="card-body p-0">
+                    <div class="list-group list-group-flush">
+                        {% for record in recent_records %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-1 small fw-semibold">{{ record.title }}</h6>
+                                    <span class="badge bg-light text-dark small">{{ record.record_type }}</span>
+                                </div>
+                                <small class="text-muted">{{ record.created_at.strftime('%d.%m') }}</small>
+                            </div>
+                        </div>
+                        {% else %}
+                        <div class="list-group-item text-center text-muted py-4">
+                            <i class="fas fa-folder-open fa-2x mb-2 d-block opacity-50"></i>
+                            <span class="small">Нет медицинских записей</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Quick Actions -->
+            <div class="card shadow-sm">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-bolt me-2 text-warning"></i>Быстрые действия</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{{ url_for('patient.book_appointment') }}" class="btn btn-outline-primary quick-action-btn text-start">
+                            <i class="fas fa-calendar-plus me-2"></i>Записаться к врачу
+                        </a>
+                        <a href="{{ url_for('chatbot.chat') }}" class="btn btn-outline-info quick-action-btn text-start">
+                            <i class="fas fa-robot me-2"></i>AI Ассистент
+                        </a>
+                        <a href="{{ url_for('patient.medical_records') }}" class="btn btn-outline-success quick-action-btn text-start">
+                            <i class="fas fa-file-medical me-2"></i>Мед. карта
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

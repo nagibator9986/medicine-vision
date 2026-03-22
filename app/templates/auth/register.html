@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+
+{% block title %}Регистрация{% endblock %}
+
+{% block content %}
+<style>
+    .auth-wrapper {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 50%, #6610f2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 2rem 1rem;
+    }
+    .auth-card {
+        width: 100%;
+        max-width: 560px;
+        border: none;
+        border-radius: 1.25rem;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        overflow: hidden;
+    }
+    .auth-card .card-body {
+        padding: 2.5rem 2rem;
+    }
+    .auth-icon {
+        width: 72px;
+        height: 72px;
+        background: linear-gradient(135deg, #0d6efd, #0dcaf0);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 1.25rem;
+        box-shadow: 0 4px 15px rgba(13, 110, 253, 0.4);
+    }
+    .auth-icon i {
+        font-size: 2rem;
+        color: #fff;
+    }
+    .btn-gradient {
+        background: linear-gradient(135deg, #0d6efd, #6610f2);
+        border: none;
+        color: #fff;
+        padding: 0.75rem 1.5rem;
+        font-size: 1.05rem;
+        border-radius: 0.75rem;
+        transition: opacity 0.2s, transform 0.2s;
+    }
+    .btn-gradient:hover {
+        opacity: 0.9;
+        transform: translateY(-1px);
+        color: #fff;
+    }
+    .form-floating > .form-control:focus,
+    .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.15);
+    }
+    .invalid-feedback {
+        font-size: 0.82rem;
+    }
+</style>
+
+<div class="auth-wrapper">
+    <div class="card auth-card">
+        <div class="card-body">
+            <div class="auth-icon">
+                <i class="bi bi-person-plus"></i>
+            </div>
+            <h3 class="text-center fw-bold mb-4">Регистрация пациента</h3>
+
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category if category != 'message' else 'info' }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрыть"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <form method="POST" action="{{ url_for('auth.register') }}">
+                {{ form.hidden_tag() }}
+
+                {# --- Email --- #}
+                <div class="form-floating mb-3">
+                    <input type="email" class="form-control {% if form.email.errors %}is-invalid{% endif %}"
+                           id="email" name="email" placeholder="Email"
+                           value="{{ form.email.data or '' }}" required>
+                    <label for="email">Email</label>
+                    {% for error in form.email.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                {# --- Password row --- #}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="password" class="form-control {% if form.password.errors %}is-invalid{% endif %}"
+                                   id="password" name="password" placeholder="Пароль" required>
+                            <label for="password">Пароль</label>
+                            {% for error in form.password.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="password" class="form-control {% if form.confirm_password.errors %}is-invalid{% endif %}"
+                                   id="confirm_password" name="confirm_password" placeholder="Подтвердите пароль" required>
+                            <label for="confirm_password">Подтвердите пароль</label>
+                            {% for error in form.confirm_password.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {# --- Name row --- #}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control {% if form.first_name.errors %}is-invalid{% endif %}"
+                                   id="first_name" name="first_name" placeholder="Имя"
+                                   value="{{ form.first_name.data or '' }}" required>
+                            <label for="first_name">Имя</label>
+                            {% for error in form.first_name.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="text" class="form-control {% if form.last_name.errors %}is-invalid{% endif %}"
+                                   id="last_name" name="last_name" placeholder="Фамилия"
+                                   value="{{ form.last_name.data or '' }}" required>
+                            <label for="last_name">Фамилия</label>
+                            {% for error in form.last_name.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {# --- Phone --- #}
+                <div class="form-floating mb-3">
+                    <input type="tel" class="form-control {% if form.phone.errors %}is-invalid{% endif %}"
+                           id="phone" name="phone" placeholder="Телефон"
+                           value="{{ form.phone.data or '' }}">
+                    <label for="phone">Телефон</label>
+                    {% for error in form.phone.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                {# --- Birth date & Gender row --- #}
+                <div class="row g-3 mb-3">
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <input type="date" class="form-control {% if form.birth_date.errors %}is-invalid{% endif %}"
+                                   id="birth_date" name="birth_date" placeholder="Дата рождения"
+                                   value="{{ form.birth_date.data or '' }}">
+                            <label for="birth_date">Дата рождения</label>
+                            {% for error in form.birth_date.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-floating">
+                            <select class="form-select {% if form.gender.errors %}is-invalid{% endif %}"
+                                    id="gender" name="gender">
+                                <option value="" disabled {% if not form.gender.data %}selected{% endif %}>Выберите</option>
+                                {% for value, label in form.gender.choices %}
+                                    <option value="{{ value }}" {% if form.gender.data == value %}selected{% endif %}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                            <label for="gender">Пол</label>
+                            {% for error in form.gender.errors %}
+                                <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+
+                {# --- Clinic --- #}
+                <div class="form-floating mb-4">
+                    <select class="form-select" id="clinic" name="clinic_id">
+                        <option value="" disabled selected>Выберите</option>
+                        {% for clinic in clinics %}
+                            <option value="{{ clinic.id }}">{{ clinic.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <label for="clinic">Выберите клинику</label>
+                </div>
+
+                <div class="d-grid mb-3">
+                    <button type="submit" class="btn btn-gradient">
+                        <i class="bi bi-person-check me-2"></i>Зарегистрироваться
+                    </button>
+                </div>
+            </form>
+
+            <p class="text-center text-muted mb-0">
+                Уже есть аккаунт?
+                <a href="{{ url_for('auth.login') }}" class="fw-semibold text-decoration-none">Войдите</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

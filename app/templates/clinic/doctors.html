@@ -1,0 +1,127 @@
+{% extends 'base.html' %}
+
+{% block title %}Врачи клиники - MediPlatform{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold mb-1">
+                <i class="fas fa-user-md text-primary me-2"></i>Врачи клиники
+            </h2>
+            <p class="text-muted mb-0">Управление врачами вашей клиники</p>
+        </div>
+        <a href="{{ url_for('clinic.add_doctor') }}" class="btn btn-primary">
+            <i class="fas fa-user-plus me-1"></i> Добавить врача
+        </a>
+    </div>
+
+    <!-- Doctors Grid -->
+    {% if doctors %}
+    <div class="row g-4">
+        {% for doctor in doctors %}
+        <div class="col-xl-3 col-lg-4 col-md-6">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body text-center pt-4">
+                    <!-- Avatar -->
+                    <div class="mb-3">
+                        {% if doctor.avatar %}
+                        <img src="{{ url_for('static', filename='uploads/avatars/' + doctor.avatar) }}"
+                             alt="{{ doctor.full_name }}"
+                             class="rounded-circle"
+                             style="width: 100px; height: 100px; object-fit: cover;">
+                        {% else %}
+                        <div class="rounded-circle bg-primary bg-opacity-10 d-inline-flex align-items-center justify-content-center"
+                             style="width: 100px; height: 100px;">
+                            <i class="fas fa-user-md fa-3x text-primary"></i>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Info -->
+                    <h5 class="fw-bold mb-1">{{ doctor.full_name }}</h5>
+                    <p class="text-primary mb-2">
+                        <i class="fas fa-stethoscope me-1"></i>{{ doctor.specialization or 'Не указана' }}
+                    </p>
+
+                    <div class="d-flex justify-content-center gap-3 mb-3">
+                        <span class="text-muted small">
+                            <i class="fas fa-briefcase me-1"></i>{{ doctor.experience_years or 0 }} лет
+                        </span>
+                        <span class="text-muted small">
+                            <i class="fas fa-ruble-sign me-1"></i>{{ doctor.consultation_price or 0 }} &#8381;
+                        </span>
+                    </div>
+
+                    <!-- Rating -->
+                    <div class="mb-3">
+                        {% set rating = doctor.average_rating|default(0)|round(1) %}
+                        {% for i in range(5) %}
+                            {% if i < rating|int %}
+                                <i class="fas fa-star text-warning"></i>
+                            {% elif i < rating %}
+                                <i class="fas fa-star-half-alt text-warning"></i>
+                            {% else %}
+                                <i class="far fa-star text-warning"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="text-muted small ms-1">({{ rating }})</span>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-top-0 text-center pb-4">
+                    <a href="{{ url_for('clinic.edit_doctor', doctor_id=doctor.id) }}"
+                       class="btn btn-sm btn-outline-primary me-2">
+                        <i class="fas fa-edit me-1"></i> Редактировать
+                    </a>
+                    <button type="button" class="btn btn-sm btn-outline-danger"
+                            data-bs-toggle="modal" data-bs-target="#deleteModal{{ doctor.id }}">
+                        <i class="fas fa-trash-alt me-1"></i> Удалить
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Delete Modal -->
+        <div class="modal fade" id="deleteModal{{ doctor.id }}" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content">
+                    <div class="modal-header border-0">
+                        <h5 class="modal-title fw-bold">Подтверждение удаления</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Вы уверены, что хотите удалить врача <strong>{{ doctor.full_name }}</strong>?</p>
+                        <p class="text-danger small mb-0">
+                            <i class="fas fa-exclamation-triangle me-1"></i>
+                            Это действие нельзя отменить.
+                        </p>
+                    </div>
+                    <div class="modal-footer border-0">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <form action="{{ url_for('clinic.delete_doctor', doctor_id=doctor.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash-alt me-1"></i> Удалить
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="card border-0 shadow-sm">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-user-md fa-4x text-muted mb-3 d-block"></i>
+            <h5 class="text-muted">Врачи пока не добавлены</h5>
+            <p class="text-muted mb-3">Добавьте первого врача в вашу клинику</p>
+            <a href="{{ url_for('clinic.add_doctor') }}" class="btn btn-primary">
+                <i class="fas fa-user-plus me-1"></i> Добавить врача
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

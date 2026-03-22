@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %}Мои отзывы{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-card {
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    .review-card:hover {
+        box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1) !important;
+    }
+    .star-rating .fas.fa-star { color: #ffc107; }
+    .star-rating .far.fa-star { color: #ddd; }
+    .pending-review-card {
+        border: 2px dashed #dee2e6;
+        border-radius: 12px;
+        transition: all 0.2s ease;
+    }
+    .pending-review-card:hover {
+        border-color: #ffc107;
+        background-color: #fffef5;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Heading -->
+    <div class="mb-4">
+        <h2 class="mb-1"><i class="fas fa-star me-2 text-warning"></i>Мои отзывы</h2>
+        <p class="text-muted mb-0">Оставьте отзыв о прошедших приемах</p>
+    </div>
+
+    <!-- Pending Reviews -->
+    {% if pending_reviews %}
+    <div class="mb-4">
+        <h5 class="mb-3"><i class="fas fa-clock me-2 text-muted"></i>Ожидают отзыва</h5>
+        <div class="row g-3">
+            {% for appointment in pending_reviews %}
+            <div class="col-lg-6">
+                <div class="pending-review-card p-3">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-warning bg-opacity-10 rounded-circle p-2 me-3 text-center" style="width: 42px; height: 42px;">
+                                <i class="fas fa-user-md text-warning mt-1"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-semibold">{{ appointment.doctor.first_name }} {{ appointment.doctor.last_name }}</h6>
+                                <small class="text-muted">
+                                    {{ appointment.doctor.specialization or 'Врач' }} &bull;
+                                    {{ appointment.appointment_date.strftime('%d.%m.%Y') }}
+                                </small>
+                            </div>
+                        </div>
+                        <a href="{{ url_for('patient.leave_review', appointment_id=appointment.id) }}"
+                           class="btn btn-warning btn-sm">
+                            <i class="fas fa-pen me-1"></i>Оставить отзыв
+                        </a>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Submitted Reviews -->
+    <h5 class="mb-3"><i class="fas fa-check-circle me-2 text-success"></i>Оставленные отзывы</h5>
+    <div class="row g-4">
+        {% for review in reviews %}
+        <div class="col-lg-6">
+            <div class="card review-card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-3">
+                        <div class="d-flex align-items-center">
+                            <div class="bg-primary bg-opacity-10 rounded-circle p-2 me-3 text-center" style="width: 42px; height: 42px;">
+                                <i class="fas fa-user-md text-primary mt-1"></i>
+                            </div>
+                            <div>
+                                <h6 class="mb-0 fw-semibold">{{ review.doctor.first_name }} {{ review.doctor.last_name }}</h6>
+                                <small class="text-muted">{{ review.doctor.specialization or 'Врач' }}</small>
+                            </div>
+                        </div>
+                        <small class="text-muted">{{ review.created_at.strftime('%d.%m.%Y') }}</small>
+                    </div>
+
+                    <!-- Rating Stars -->
+                    <div class="star-rating mb-2">
+                        {% for i in range(1, 6) %}
+                            {% if i <= review.rating %}
+                                <i class="fas fa-star"></i>
+                            {% else %}
+                                <i class="far fa-star"></i>
+                            {% endif %}
+                        {% endfor %}
+                        <span class="text-muted small ms-1">({{ review.rating }}/5)</span>
+                    </div>
+
+                    <!-- Comment -->
+                    {% if review.comment %}
+                    <p class="mb-0 text-muted">{{ review.comment }}</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% else %}
+        {% if not pending_reviews %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-star fa-4x text-muted mb-3 d-block opacity-50"></i>
+                    <h5 class="text-muted">Нет отзывов</h5>
+                    <p class="text-muted">Отзывы можно оставить после завершения приема</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+</div>
+{% endblock %}

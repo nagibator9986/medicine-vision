@@ -1,0 +1,295 @@
+{% extends 'base.html' %}
+
+{% block title %}Запись на прием{% endblock %}
+
+{% block extra_css %}
+<style>
+    .step-indicator {
+        display: flex;
+        justify-content: center;
+        margin-bottom: 2rem;
+    }
+    .step {
+        display: flex;
+        align-items: center;
+        color: #adb5bd;
+    }
+    .step.active {
+        color: #0d6efd;
+    }
+    .step.completed {
+        color: #198754;
+    }
+    .step-number {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        border: 2px solid currentColor;
+        margin-right: 0.5rem;
+    }
+    .step.active .step-number {
+        background: #0d6efd;
+        color: white;
+        border-color: #0d6efd;
+    }
+    .step.completed .step-number {
+        background: #198754;
+        color: white;
+        border-color: #198754;
+    }
+    .step-line {
+        width: 50px;
+        height: 2px;
+        background: #dee2e6;
+        margin: 0 0.75rem;
+    }
+    .time-slot-btn {
+        border: 2px solid #dee2e6;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        background: white;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        color: #333;
+    }
+    .time-slot-btn:hover {
+        border-color: #0d6efd;
+        color: #0d6efd;
+    }
+    .time-slot-btn.selected {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+    .time-slot-btn:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <!-- Heading -->
+            <div class="text-center mb-4">
+                <h2><i class="fas fa-calendar-plus me-2 text-primary"></i>Запись на прием</h2>
+                <p class="text-muted">Заполните форму для записи на онлайн-консультацию</p>
+            </div>
+
+            <!-- Step Indicators -->
+            <div class="step-indicator">
+                <div class="step active" id="step1-indicator">
+                    <div class="step-number">1</div>
+                    <span class="d-none d-md-inline">Врач</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step2-indicator">
+                    <div class="step-number">2</div>
+                    <span class="d-none d-md-inline">Дата и время</span>
+                </div>
+                <div class="step-line"></div>
+                <div class="step" id="step3-indicator">
+                    <div class="step-number">3</div>
+                    <span class="d-none d-md-inline">Симптомы</span>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="POST" action="{{ url_for('patient.book_appointment') }}" id="bookingForm">
+                        {{ form.hidden_tag() }}
+
+                        <!-- Step 1: Select Doctor -->
+                        <div class="step-content" id="step1">
+                            <h5 class="mb-3"><i class="fas fa-user-md me-2"></i>Выберите врача</h5>
+                            <div class="mb-3">
+                                <select name="doctor_id" id="doctor_id" class="form-select form-select-lg" required>
+                                    <option value="">-- Выберите врача --</option>
+                                    {% for doctor in doctors %}
+                                    <option value="{{ doctor.id }}"
+                                            {% if doctor_id and doctor.id == doctor_id %}selected{% endif %}>
+                                        {{ doctor.first_name }} {{ doctor.last_name }}
+                                        {% if doctor.specialization %} - {{ doctor.specialization }}{% endif %}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="text-end">
+                                <button type="button" class="btn btn-primary" onclick="nextStep(2)">
+                                    Далее <i class="fas fa-arrow-right ms-1"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 2: Select Date & Time -->
+                        <div class="step-content d-none" id="step2">
+                            <h5 class="mb-3"><i class="fas fa-calendar me-2"></i>Выберите дату и время</h5>
+                            <div class="mb-3">
+                                <label for="appointment_date" class="form-label fw-semibold">Дата приема</label>
+                                <input type="date" name="appointment_date" id="appointment_date"
+                                       class="form-control form-control-lg"
+                                       min="{{ today }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold">Время приема</label>
+                                <div id="timeSlotsContainer">
+                                    <div class="text-center text-muted py-4" id="timeSlotsPlaceholder">
+                                        <i class="fas fa-clock fa-2x mb-2 d-block opacity-50"></i>
+                                        <p>Выберите врача и дату для отображения доступного времени</p>
+                                    </div>
+                                    <div id="timeSlotsLoading" class="text-center py-4 d-none">
+                                        <div class="spinner-border text-primary" role="status">
+                                            <span class="visually-hidden">Загрузка...</span>
+                                        </div>
+                                        <p class="text-muted mt-2">Загрузка доступного времени...</p>
+                                    </div>
+                                    <div id="timeSlots" class="d-flex flex-wrap gap-2"></div>
+                                    <div id="noSlots" class="text-center text-muted py-3 d-none">
+                                        <i class="fas fa-exclamation-circle me-1"></i>
+                                        Нет доступного времени на выбранную дату
+                                    </div>
+                                </div>
+                                <input type="hidden" name="time_slot" id="time_slot" required>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" onclick="nextStep(1)">
+                                    <i class="fas fa-arrow-left me-1"></i> Назад
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="nextStep(3)">
+                                    Далее <i class="fas fa-arrow-right ms-1"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <!-- Step 3: Describe Symptoms -->
+                        <div class="step-content d-none" id="step3">
+                            <h5 class="mb-3"><i class="fas fa-notes-medical me-2"></i>Опишите симптомы</h5>
+                            <div class="mb-4">
+                                <label for="symptoms" class="form-label fw-semibold">Что вас беспокоит?</label>
+                                <textarea name="symptoms" id="symptoms" class="form-control"
+                                          rows="5" placeholder="Опишите ваши симптомы, жалобы или причину обращения..."></textarea>
+                                <div class="form-text">Эта информация поможет врачу подготовиться к приему</div>
+                            </div>
+
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" onclick="nextStep(2)">
+                                    <i class="fas fa-arrow-left me-1"></i> Назад
+                                </button>
+                                <button type="submit" class="btn btn-success btn-lg">
+                                    <i class="fas fa-check me-1"></i>Записаться
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function nextStep(step) {
+        // Validation
+        if (step === 2) {
+            const doctorId = document.getElementById('doctor_id').value;
+            if (!doctorId) {
+                alert('Пожалуйста, выберите врача');
+                return;
+            }
+        }
+        if (step === 3) {
+            const timeSlot = document.getElementById('time_slot').value;
+            const date = document.getElementById('appointment_date').value;
+            if (!date) {
+                alert('Пожалуйста, выберите дату');
+                return;
+            }
+            if (!timeSlot) {
+                alert('Пожалуйста, выберите время');
+                return;
+            }
+        }
+
+        // Hide all steps
+        document.querySelectorAll('.step-content').forEach(el => el.classList.add('d-none'));
+        document.getElementById('step' + step).classList.remove('d-none');
+
+        // Update indicators
+        for (let i = 1; i <= 3; i++) {
+            const indicator = document.getElementById('step' + i + '-indicator');
+            indicator.classList.remove('active', 'completed');
+            if (i < step) {
+                indicator.classList.add('completed');
+            } else if (i === step) {
+                indicator.classList.add('active');
+            }
+        }
+    }
+
+    function loadTimeSlots() {
+        const doctorId = document.getElementById('doctor_id').value;
+        const date = document.getElementById('appointment_date').value;
+
+        if (!doctorId || !date) return;
+
+        const container = document.getElementById('timeSlots');
+        const placeholder = document.getElementById('timeSlotsPlaceholder');
+        const loading = document.getElementById('timeSlotsLoading');
+        const noSlots = document.getElementById('noSlots');
+
+        placeholder.classList.add('d-none');
+        noSlots.classList.add('d-none');
+        container.innerHTML = '';
+        loading.classList.remove('d-none');
+
+        fetch(`/patient/api/time-slots?doctor_id=${doctorId}&date=${date}`)
+            .then(response => response.json())
+            .then(data => {
+                loading.classList.add('d-none');
+
+                if (data.slots && data.slots.length > 0) {
+                    data.slots.forEach(slot => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'time-slot-btn';
+                        btn.textContent = slot;
+                        btn.addEventListener('click', function() {
+                            document.querySelectorAll('.time-slot-btn').forEach(b => b.classList.remove('selected'));
+                            this.classList.add('selected');
+                            document.getElementById('time_slot').value = slot;
+                        });
+                        container.appendChild(btn);
+                    });
+                } else {
+                    noSlots.classList.remove('d-none');
+                }
+            })
+            .catch(error => {
+                loading.classList.add('d-none');
+                noSlots.classList.remove('d-none');
+                console.error('Error loading time slots:', error);
+            });
+    }
+
+    document.getElementById('doctor_id').addEventListener('change', loadTimeSlots);
+    document.getElementById('appointment_date').addEventListener('change', loadTimeSlots);
+
+    // Auto-load if doctor is pre-selected
+    document.addEventListener('DOMContentLoaded', function() {
+        if (document.getElementById('doctor_id').value) {
+            loadTimeSlots();
+        }
+    });
+</script>
+{% endblock %}

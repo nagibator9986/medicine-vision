@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MediPlatform{% endblock %}</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Bootstrap 5.3 -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Font Awesome 6 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+
+    <!-- Custom CSS -->
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-dark fixed-top">
+        <div class="container-fluid px-4">
+            <a class="navbar-brand d-flex align-items-center" href="{{ url_for('auth.login') }}">
+                <i class="fas fa-heartbeat me-2"></i>
+                <span class="fw-bold">MediPlatform</span>
+            </a>
+
+            <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbarMain">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+
+            <div class="collapse navbar-collapse" id="navbarMain">
+                {% if current_user.is_authenticated %}
+                <ul class="navbar-nav me-auto">
+                    {% if current_user.role == 'superadmin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Панель управления
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.clinics') }}">
+                            <i class="fas fa-hospital me-1"></i> Клиники
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.users') }}">
+                            <i class="fas fa-users me-1"></i> Пользователи
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('admin.analytics') }}">
+                            <i class="fas fa-chart-line me-1"></i> Аналитика
+                        </a>
+                    </li>
+
+                    {% elif current_user.role == 'clinic_admin' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('clinic.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Панель управления
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('clinic.doctors') }}">
+                            <i class="fas fa-user-md me-1"></i> Врачи
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('clinic.patients') }}">
+                            <i class="fas fa-users me-1"></i> Пациенты
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('clinic.appointments') }}">
+                            <i class="fas fa-calendar-check me-1"></i> Записи
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('clinic.settings') }}">
+                            <i class="fas fa-cog me-1"></i> Настройки
+                        </a>
+                    </li>
+
+                    {% elif current_user.role == 'doctor' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('doctor.dashboard') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Панель управления
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('doctor.appointments') }}">
+                            <i class="fas fa-calendar-alt me-1"></i> Расписание
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('doctor.reviews') }}">
+                            <i class="fas fa-star me-1"></i> Отзывы
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('doctor.profile') }}">
+                            <i class="fas fa-user me-1"></i> Профиль
+                        </a>
+                    </li>
+
+                    {% elif current_user.role == 'patient' %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('patient.index') }}">
+                            <i class="fas fa-tachometer-alt me-1"></i> Панель управления
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('patient.doctors') }}">
+                            <i class="fas fa-user-md me-1"></i> Врачи
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('patient.appointments') }}">
+                            <i class="fas fa-calendar-check me-1"></i> Мои записи
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('patient.medical_records') }}">
+                            <i class="fas fa-file-medical me-1"></i> Мед. карта
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('chatbot.chat') }}">
+                            <i class="fas fa-robot me-1"></i> AI Ассистент
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('patient.profile') }}">
+                            <i class="fas fa-user me-1"></i> Профиль
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+
+                <!-- Right Side: Notifications & User -->
+                <ul class="navbar-nav ms-auto align-items-center">
+                    <!-- Notifications -->
+                    <li class="nav-item dropdown me-3">
+                        <a class="nav-link position-relative" href="#" id="notificationsDropdown"
+                           role="button" data-bs-toggle="dropdown" data-bs-auto-close="outside">
+                            <i class="fas fa-bell fa-lg"></i>
+                            <span class="badge bg-danger rounded-pill notification-badge d-none" id="notificationCount">0</span>
+                        </a>
+                        <div class="dropdown-menu dropdown-menu-end notification-dropdown p-0" aria-labelledby="notificationsDropdown">
+                            <div class="notification-header d-flex justify-content-between align-items-center px-3 py-2">
+                                <h6 class="mb-0 fw-semibold">Уведомления</h6>
+                                <a href="#" class="text-decoration-none small" id="markAllRead">Прочитать все</a>
+                            </div>
+                            <div class="notification-body" id="notificationList">
+                                <div class="text-center py-4 text-muted">
+                                    <i class="fas fa-bell-slash fa-2x mb-2 d-block"></i>
+                                    <span class="small">Нет новых уведомлений</span>
+                                </div>
+                            </div>
+                            <div class="notification-footer text-center py-2 border-top">
+                                <a href="{{ url_for('patient.notifications') if current_user.is_authenticated and current_user.role == 'patient' else '#' }}" class="text-decoration-none small">Все уведомления</a>
+                            </div>
+                        </div>
+                    </li>
+
+                    <!-- User Dropdown -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle d-flex align-items-center" href="#"
+                           id="userDropdown" role="button" data-bs-toggle="dropdown">
+                            <div class="user-avatar me-2">
+                                <i class="fas fa-user-circle fa-lg"></i>
+                            </div>
+                            <span class="d-none d-lg-inline">{{ current_user.full_name or current_user.email }}</span>
+                        </a>
+                        <ul class="dropdown-menu dropdown-menu-end shadow-sm">
+                            <li>
+                                <a class="dropdown-item" href="{% if current_user.role == 'doctor' %}{{ url_for('doctor.profile') }}{% elif current_user.role == 'patient' %}{{ url_for('patient.profile') }}{% else %}#{% endif %}">
+                                    <i class="fas fa-user me-2 text-primary"></i> Профиль
+                                </a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item text-danger" href="{{ url_for('auth.logout') }}">
+                                    <i class="fas fa-sign-out-alt me-2"></i> Выйти
+                                </a>
+                            </li>
+                        </ul>
+                    </li>
+                </ul>
+
+                {% else %}
+                <!-- Not Authenticated -->
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item me-2">
+                        <a class="btn btn-outline-light btn-sm px-3" href="{{ url_for('auth.login') }}">
+                            <i class="fas fa-sign-in-alt me-1"></i> Войти
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="btn btn-light btn-sm px-3 fw-semibold" href="{{ url_for('auth.register') }}">
+                            <i class="fas fa-user-plus me-1"></i> Регистрация
+                        </a>
+                    </li>
+                </ul>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    <div class="flash-container" id="flashMessages">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                <div class="alert alert-{{ 'danger' if category == 'error' else category }} alert-dismissible fade show flash-alert" role="alert">
+                    <div class="d-flex align-items-center">
+                        {% if category == 'success' %}
+                            <i class="fas fa-check-circle me-2"></i>
+                        {% elif category == 'error' or category == 'danger' %}
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                        {% elif category == 'warning' %}
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle me-2"></i>
+                        {% endif %}
+                        <span>{{ message }}</span>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <p class="mb-0">&copy; {{ now.year if now is defined else '2026' }} <strong>MediPlatform</strong>. Все права защищены.</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <a href="#" class="text-muted me-3"><i class="fas fa-shield-alt me-1"></i>Политика конфиденциальности</a>
+                    <a href="#" class="text-muted"><i class="fas fa-file-contract me-1"></i>Условия использования</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Socket.IO -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
+
+    <!-- Custom JS -->
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

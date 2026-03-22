@@ -1,0 +1,161 @@
+{% extends 'base.html' %}
+
+{% block title %}Пользователи платформы{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <h2 class="mb-4"><i class="fas fa-users me-2"></i>Пользователи платформы</h2>
+
+    <!-- Filters -->
+    <div class="card shadow-sm mb-4">
+        <div class="card-body">
+            <form method="GET" action="{{ url_for('admin.users') }}">
+                <div class="row g-3 align-items-end">
+                    <div class="col-md-4">
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select">
+                            <option value="">Все роли</option>
+                            <option value="superadmin" {% if request.args.get('role') == 'superadmin' %}selected{% endif %}>Суперадмин</option>
+                            <option value="clinic_admin" {% if request.args.get('role') == 'clinic_admin' %}selected{% endif %}>Администратор клиники</option>
+                            <option value="doctor" {% if request.args.get('role') == 'doctor' %}selected{% endif %}>Врач</option>
+                            <option value="patient" {% if request.args.get('role') == 'patient' %}selected{% endif %}>Пациент</option>
+                        </select>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">Поиск</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="fas fa-search"></i></span>
+                            <input type="text" name="search" class="form-control" placeholder="Имя или email..." value="{{ request.args.get('search', '') }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-primary flex-grow-1">
+                                <i class="fas fa-filter me-1"></i>Применить
+                            </button>
+                            {% if request.args.get('role') or request.args.get('search') %}
+                                <a href="{{ url_for('admin.users') }}" class="btn btn-outline-secondary">
+                                    <i class="fas fa-times"></i>
+                                </a>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Users Table -->
+    <div class="card shadow-sm">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th style="width: 50px;"></th>
+                            <th>Имя</th>
+                            <th>Email</th>
+                            <th>Роль</th>
+                            <th>Клиника</th>
+                            <th class="text-center">Статус</th>
+                            <th>Дата регистрации</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users.items %}
+                        <tr>
+                            <td>
+                                {% if user.avatar %}
+                                    <img src="{{ url_for('static', filename='uploads/avatars/' + user.avatar) }}" alt="" class="rounded-circle" style="width: 40px; height: 40px; object-fit: cover;">
+                                {% else %}
+                                    <div class="rounded-circle bg-light d-flex align-items-center justify-content-center" style="width: 40px; height: 40px;">
+                                        <i class="fas fa-user text-muted"></i>
+                                    </div>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="fw-bold">{{ user.first_name }} {{ user.last_name }}</div>
+                            </td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                {% if user.role == 'superadmin' %}
+                                    <span class="badge" style="background-color: #6f42c1;">
+                                        <i class="fas fa-crown me-1"></i>Суперадмин
+                                    </span>
+                                {% elif user.role == 'clinic_admin' %}
+                                    <span class="badge bg-primary">
+                                        <i class="fas fa-user-tie me-1"></i>Админ клиники
+                                    </span>
+                                {% elif user.role == 'doctor' %}
+                                    <span class="badge bg-success">
+                                        <i class="fas fa-user-md me-1"></i>Врач
+                                    </span>
+                                {% elif user.role == 'patient' %}
+                                    <span class="badge bg-info">
+                                        <i class="fas fa-user me-1"></i>Пациент
+                                    </span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ user.role }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if user.clinic %}
+                                    {{ user.clinic.name }}
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if user.is_active %}
+                                    <span class="badge bg-success">Активен</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">Неактивен</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user.created_at.strftime('%d.%m.%Y') }}</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-user-slash fa-2x mb-2 d-block"></i>
+                                Пользователи не найдены
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Pagination -->
+        {% if users.pages > 1 %}
+        <div class="card-footer bg-white">
+            <nav>
+                <ul class="pagination justify-content-center mb-0">
+                    <li class="page-item {% if not users.has_prev %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.users', page=users.prev_num, role=request.args.get('role', ''), search=request.args.get('search', '')) }}">
+                            <i class="fas fa-chevron-left"></i>
+                        </a>
+                    </li>
+                    {% for page_num in users.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                        {% if page_num %}
+                            <li class="page-item {% if page_num == users.page %}active{% endif %}">
+                                <a class="page-link" href="{{ url_for('admin.users', page=page_num, role=request.args.get('role', ''), search=request.args.get('search', '')) }}">{{ page_num }}</a>
+                            </li>
+                        {% else %}
+                            <li class="page-item disabled"><span class="page-link">...</span></li>
+                        {% endif %}
+                    {% endfor %}
+                    <li class="page-item {% if not users.has_next %}disabled{% endif %}">
+                        <a class="page-link" href="{{ url_for('admin.users', page=users.next_num, role=request.args.get('role', ''), search=request.args.get('search', '')) }}">
+                            <i class="fas fa-chevron-right"></i>
+                        </a>
+                    </li>
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
