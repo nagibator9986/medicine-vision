@@ -1,11 +1,15 @@
+import logging
+import os
+import uuid
+from datetime import datetime, timezone
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
 from flask_socketio import emit, join_room, leave_room
 from app import db, socketio, csrf
 from app.models import User, Appointment, VideoCall, Notification
-from datetime import datetime
-import uuid
-import os
+
+logger = logging.getLogger(__name__)
 
 videocall_bp = Blueprint('videocall', __name__)
 
@@ -38,7 +42,7 @@ def start(appointment_id):
     videocall = VideoCall(
         appointment_id=appointment.id,
         room_id=room_id,
-        started_at=datetime.utcnow(),
+        started_at=datetime.now(timezone.utc),
         status='active'
     )
 
@@ -59,7 +63,7 @@ def end(room_id):
     if current_user.id not in (appointment.doctor_id, appointment.patient_id):
         abort(403)
 
-    videocall.ended_at = datetime.utcnow()
+    videocall.ended_at = datetime.now(timezone.utc)
     if videocall.started_at:
         videocall.duration_seconds = int((videocall.ended_at - videocall.started_at).total_seconds())
     videocall.status = 'ended'
@@ -114,8 +118,8 @@ def transcribe(room_id):
         )
         summary = response.choices[0].message.content
         videocall.summary = summary
-    except Exception:
-        pass
+    except Exception as e:
+        logger.error('OpenAI transcription summary error: %s', e)
 
     db.session.commit()
 

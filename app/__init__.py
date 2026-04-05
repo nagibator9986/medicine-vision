@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager
 from flask_migrate import Migrate
@@ -21,7 +21,8 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
-    socketio.init_app(app, cors_allowed_origins="*", async_mode='threading')
+    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5050').split(',')
+    socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode='threading')
     csrf.init_app(app)
 
     login_manager.login_view = 'auth.login'
@@ -53,11 +54,15 @@ def create_app(config_class=Config):
 
     @login_manager.user_loader
     def load_user(user_id):
-        return User.query.get(int(user_id))
+        return db.session.get(User, int(user_id))
+
+    @app.route('/')
+    def index():
+        return redirect(url_for('auth.login'))
 
     @app.context_processor
     def inject_now():
-        from datetime import datetime
-        return {'now': datetime.utcnow()}
+        from datetime import datetime, timezone
+        return {'now': datetime.now(timezone.utc)}
 
     return app

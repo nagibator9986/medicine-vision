@@ -147,11 +147,11 @@
                                 <span class="fw-bold text-primary">{{ loop.index }}</span>
                             </div>
                             <div class="flex-grow-1">
-                                <div class="fw-bold">{{ clinic_data.clinic.name }}</div>
-                                <small class="text-muted">{{ clinic_data.clinic.address or 'Адрес не указан' }}</small>
+                                <div class="fw-bold">{{ clinic_data[0].name }}</div>
+                                <small class="text-muted">{{ clinic_data[0].address or 'Адрес не указан' }}</small>
                             </div>
                             <div class="text-end">
-                                <span class="badge bg-primary rounded-pill fs-6">{{ clinic_data.appointment_count }}</span>
+                                <span class="badge bg-primary rounded-pill fs-6">{{ clinic_data[1] }}</span>
                                 <div class="small text-muted">записей</div>
                             </div>
                         </div>

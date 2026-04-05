@@ -1,6 +1,6 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
 from flask_login import login_required, current_user
-from datetime import datetime, timedelta, date
+from datetime import datetime, timedelta, date, timezone
 from app import db
 from app.models import (User, Clinic, Appointment, VideoCall, Prescription,
                         MedicalRecord, ChatMessage, Notification, Review)
@@ -30,7 +30,7 @@ def patient_required(f):
 @login_required
 @patient_required
 def index():
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     upcoming_appointments = (
         Appointment.query
@@ -174,7 +174,7 @@ def _generate_time_slots(clinic, selected_date, doctor_id):
         ).all()
     }
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     slots = []
     current = slot_start
     while current < slot_end:
@@ -192,7 +192,7 @@ def _generate_time_slots(clinic, selected_date, doctor_id):
 def book_appointment():
     form = AppointmentForm()
 
-    clinic = Clinic.query.get(current_user.clinic_id) if current_user.clinic_id else None
+    clinic = db.session.get(Clinic, current_user.clinic_id) if current_user.clinic_id else None
 
     # Populate doctor choices
     doctor_query = User.query.filter_by(role='doctor', is_active=True)
@@ -258,7 +258,7 @@ def book_appointment():
         db.session.add(appointment)
 
         # Notify the doctor
-        doctor = User.query.get(doctor_id)
+        doctor = db.session.get(User, doctor_id)
         notification = Notification(
             user_id=doctor_id,
             title='Новая запись на приём',
@@ -293,7 +293,7 @@ def api_time_slots():
     except ValueError:
         return jsonify([])
 
-    clinic = Clinic.query.get(current_user.clinic_id) if current_user.clinic_id else None
+    clinic = db.session.get(Clinic, current_user.clinic_id) if current_user.clinic_id else None
     slots = _generate_time_slots(clinic, selected_date, doctor_id) if clinic else []
     return jsonify(slots)
 
@@ -313,7 +313,10 @@ def appointments():
     if status_filter:
         query = query.filter_by(status=status_filter)
 
-    appointments_list = query.order_by(Appointment.scheduled_time.desc()).all()
+    page = request.args.get('page', 1, type=int)
+    appointments_list = query.order_by(
+        Appointment.scheduled_time.desc()
+    ).paginate(page=page, per_page=20, error_out=False)
 
     return render_template(
         'patient/appointments.html',
@@ -385,7 +388,7 @@ def profile():
             if filename:
                 upload_dir = os.path.join('app', 'static', 'uploads', 'avatars')
                 os.makedirs(upload_dir, exist_ok=True)
-                unique_name = f'{current_user.id}_{int(datetime.utcnow().timestamp())}_{filename}'
+                unique_name = f'{current_user.id}_{int(datetime.now(timezone.utc).timestamp())}_{filename}'
                 filepath = os.path.join(upload_dir, unique_name)
                 form.avatar.data.save(filepath)
                 current_user.avatar = f'uploads/avatars/{unique_name}'
@@ -567,8 +570,8 @@ def health_tracker():
         else:
             record = MedicalRecord(
                 patient_id=current_user.id,
-                doctor_id=current_user.id,  # self-logged
-                record_type='note',
+                doctor_id=None,
+                record_type='self_log',
                 title=f'Симптом: {symptom}',
                 content=f'Тяжесть: {severity}\n{notes}' if severity else notes,
             )
@@ -579,7 +582,7 @@ def health_tracker():
 
     symptom_logs = (
         MedicalRecord.query
-        .filter_by(patient_id=current_user.id, doctor_id=current_user.id, record_type='note')
+        .filter_by(patient_id=current_user.id, record_type='self_log')
         .order_by(MedicalRecord.created_at.desc())
         .all()
     )

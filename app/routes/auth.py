@@ -1,8 +1,18 @@
+from urllib.parse import urlparse
+
 from flask import Blueprint, render_template, redirect, url_for, flash, request
 from flask_login import login_user, logout_user, current_user, login_required
 from app import db
 from app.models import User, Clinic
 from app.forms import LoginForm, PatientRegistrationForm
+
+
+def _is_safe_url(target):
+    """Ensure redirect target is a relative path on the same host."""
+    if not target:
+        return False
+    parsed = urlparse(target)
+    return parsed.scheme == '' and parsed.netloc == ''
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -35,7 +45,7 @@ def login():
         flash(f'Добро пожаловать, {user.first_name}!', 'success')
 
         next_page = request.args.get('next')
-        if next_page:
+        if next_page and _is_safe_url(next_page):
             return redirect(next_page)
 
         return redirect(url_for(ROLE_REDIRECTS.get(user.role, 'auth.login')))
@@ -59,7 +69,7 @@ def register():
 
         clinic_id = request.form.get('clinic_id', type=int)
         if clinic_id:
-            clinic = Clinic.query.get(clinic_id)
+            clinic = db.session.get(Clinic, clinic_id)
             if not clinic or not clinic.is_active:
                 flash('Выбранная клиника недоступна.', 'danger')
                 return render_template('auth/register.html', form=form, clinics=clinics)

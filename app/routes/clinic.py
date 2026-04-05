@@ -65,12 +65,12 @@ def dashboard():
         Appointment.scheduled_time.between(today_start, today_end)
     ).count()
 
-    completed_appointments = Appointment.query.filter_by(
-        clinic_id=clinic_obj.id, status='completed'
-    ).all()
-    revenue = sum(
-        a.doctor.consultation_price or 0 for a in completed_appointments
-    )
+    revenue = (
+        db.session.query(db.func.coalesce(db.func.sum(User.consultation_price), 0))
+        .join(Appointment, Appointment.doctor_id == User.id)
+        .filter(Appointment.clinic_id == clinic_obj.id, Appointment.status == 'completed')
+        .scalar()
+    ) or 0
 
     return render_template(
         'clinic/dashboard.html',
@@ -291,29 +291,42 @@ def statistics():
         clinic_id=clinic_obj.id, status='cancelled'
     ).count()
 
-    # Revenue
-    completed = Appointment.query.filter_by(
-        clinic_id=clinic_obj.id, status='completed'
-    ).all()
-    total_revenue = sum(a.doctor.consultation_price or 0 for a in completed)
+    # Revenue (single aggregate query instead of N+1)
+    total_revenue = (
+        db.session.query(db.func.coalesce(db.func.sum(User.consultation_price), 0))
+        .join(Appointment, Appointment.doctor_id == User.id)
+        .filter(Appointment.clinic_id == clinic_obj.id, Appointment.status == 'completed')
+        .scalar()
+    ) or 0
 
-    # Monthly revenue for the last 6 months
+    # Monthly revenue for the last 6 months (correct calendar math)
+    from calendar import monthrange
     monthly_revenue = []
+    today = date.today()
     for i in range(5, -1, -1):
-        month_date = date.today().replace(day=1) - timedelta(days=i * 30)
-        month_start = month_date.replace(day=1)
-        if month_start.month == 12:
-            month_end = month_start.replace(year=month_start.year + 1, month=1)
+        # Walk back i months correctly
+        month = today.month - i
+        year = today.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_start = date(year, month, 1)
+        if month == 12:
+            month_end = date(year + 1, 1, 1)
         else:
-            month_end = month_start.replace(month=month_start.month + 1)
+            month_end = date(year, month + 1, 1)
 
-        month_completed = Appointment.query.filter(
-            Appointment.clinic_id == clinic_obj.id,
-            Appointment.status == 'completed',
-            Appointment.scheduled_time >= datetime.combine(month_start, datetime.min.time()),
-            Appointment.scheduled_time < datetime.combine(month_end, datetime.min.time()),
-        ).all()
-        rev = sum(a.doctor.consultation_price or 0 for a in month_completed)
+        rev = (
+            db.session.query(db.func.coalesce(db.func.sum(User.consultation_price), 0))
+            .join(Appointment, Appointment.doctor_id == User.id)
+            .filter(
+                Appointment.clinic_id == clinic_obj.id,
+                Appointment.status == 'completed',
+                Appointment.scheduled_time >= datetime.combine(month_start, datetime.min.time()),
+                Appointment.scheduled_time < datetime.combine(month_end, datetime.min.time()),
+            )
+            .scalar()
+        ) or 0
         monthly_revenue.append({
             'month': month_start.strftime('%B %Y'),
             'revenue': rev,

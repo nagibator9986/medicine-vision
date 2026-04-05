@@ -10,10 +10,10 @@ def init_db():
     db.create_all()
 
     # Create superadmin if not exists
-    admin = User.query.filter_by(email='admin@mediplatform.ru').first()
+    admin = User.query.filter_by(email='admin@mediplatform.kz').first()
     if not admin:
         admin = User(
-            email='admin@mediplatform.ru',
+            email='admin@mediplatform.kz',
             first_name='Администратор',
             last_name='Платформы',
             role='superadmin',
@@ -23,14 +23,14 @@ def init_db():
         db.session.add(admin)
 
     # Create demo clinic
-    clinic = Clinic.query.filter_by(email='demo@clinic.ru').first()
+    clinic = Clinic.query.filter_by(email='demo@clinic.kz').first()
     if not clinic:
         clinic = Clinic(
-            name='Клиника "Здоровье"',
-            description='Современная многопрофильная клиника с широким спектром медицинских услуг',
-            address='г. Москва, ул. Примерная, д. 1',
-            phone='+7 (495) 123-45-67',
-            email='demo@clinic.ru',
+            name='Клиника "Денсаулық"',
+            description='Заманауи көп бейінді клиника — кең ауқымды медициналық қызметтер',
+            address='г. Алматы, ул. Абая, д. 52',
+            phone='+7 (727) 123-45-67',
+            email='demo@clinic.kz',
             primary_color='#2563eb',
             secondary_color='#10b981',
             working_hours_start='09:00',
@@ -43,7 +43,7 @@ def init_db():
 
         # Create clinic admin
         clinic_admin = User(
-            email='clinic@mediplatform.ru',
+            email='clinic@mediplatform.kz',
             first_name='Админ',
             last_name='Клиники',
             role='clinic_admin',
@@ -55,15 +55,15 @@ def init_db():
 
         # Create demo doctor
         doctor = User(
-            email='doctor@mediplatform.ru',
-            first_name='Иван',
-            last_name='Петров',
+            email='doctor@mediplatform.kz',
+            first_name='Арман',
+            last_name='Сериков',
             role='doctor',
             clinic_id=clinic.id,
             specialization='Терапевт',
             experience_years=10,
-            bio='Опытный врач-терапевт с 10-летним стажем работы.',
-            consultation_price=2500.0,
+            bio='Тәжірибелі дәрігер-терапевт, 10 жылдық тәжірибе.',
+            consultation_price=15000.0,
             is_active=True
         )
         doctor.set_password('doctor123')
@@ -71,9 +71,9 @@ def init_db():
 
         # Create demo patient
         patient = User(
-            email='patient@mediplatform.ru',
-            first_name='Мария',
-            last_name='Иванова',
+            email='patient@mediplatform.kz',
+            first_name='Айгерим',
+            last_name='Нурланова',
             role='patient',
             clinic_id=clinic.id,
             gender='female',
@@ -86,10 +86,10 @@ def init_db():
     print('Database initialized successfully!')
     print('')
     print('Demo accounts:')
-    print('  Superadmin:    admin@mediplatform.ru / admin123')
-    print('  Clinic Admin:  clinic@mediplatform.ru / clinic123')
-    print('  Doctor:        doctor@mediplatform.ru / doctor123')
-    print('  Patient:       patient@mediplatform.ru / patient123')
+    print('  Superadmin:    admin@mediplatform.kz / admin123')
+    print('  Clinic Admin:  clinic@mediplatform.kz / clinic123')
+    print('  Doctor:        doctor@mediplatform.kz / doctor123')
+    print('  Patient:       patient@mediplatform.kz / patient123')
 
 
 if __name__ == '__main__':

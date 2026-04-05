@@ -140,7 +140,7 @@
                                 {% for appointment in appointment_history %}
                                     {% if appointment.prescription %}
                                     <tr>
-                                        <td>{{ appointment.appointment_date.strftime('%d.%m.%Y') }}</td>
+                                        <td>{{ appointment.scheduled_time.strftime('%d.%m.%Y') }}</td>
                                         <td>
                                             {% if appointment.prescription.diagnosis %}
                                                 {{ appointment.prescription.diagnosis[:50] }}{% if appointment.prescription.diagnosis|length > 50 %}...{% endif %}

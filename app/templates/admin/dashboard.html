@@ -148,7 +148,7 @@
                                 <tr>
                                     <td>{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</td>
                                     <td>{{ appointment.doctor.first_name }} {{ appointment.doctor.last_name }}</td>
-                                    <td>{{ appointment.appointment_date.strftime('%d.%m.%Y %H:%M') }}</td>
+                                    <td>{{ appointment.scheduled_time.strftime('%d.%m.%Y %H:%M') }}</td>
                                     <td>
                                         {% if appointment.status == 'scheduled' %}
                                             <span class="badge bg-primary">Запланирована</span>

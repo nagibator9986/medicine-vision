@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, abort
 from flask_login import login_required, current_user
@@ -30,7 +30,7 @@ def save_logo(file):
     filename = secure_filename(file.filename)
     # Add timestamp to avoid collisions
     name, ext = os.path.splitext(filename)
-    filename = f"{name}_{int(datetime.utcnow().timestamp())}{ext}"
+    filename = f"{name}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
     upload_dir = os.path.join(current_app.root_path, 'static', 'uploads')
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, filename))
@@ -78,9 +78,10 @@ def clinics():
     page = request.args.get('page', 1, type=int)
     query = Clinic.query.order_by(Clinic.created_at.desc())
 
-    search = request.args.get('search', '', type=str)
+    search = request.args.get('search', '', type=str).strip()
     if search:
-        query = query.filter(Clinic.name.ilike(f'%{search}%'))
+        safe_search = search.replace('%', r'\%').replace('_', r'\_')
+        query = query.filter(Clinic.name.ilike(f'%{safe_search}%'))
 
     clinics = query.paginate(page=page, per_page=20, error_out=False)
     return render_template(
@@ -268,7 +269,7 @@ def analytics():
     appointments_by_status = dict(appointments_by_status)
 
     # Appointments over last 30 days
-    thirty_days_ago = datetime.utcnow() - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
     recent_appointments_count = Appointment.query.filter(
         Appointment.created_at >= thirty_days_ago
     ).count()
@@ -280,10 +281,10 @@ def analytics():
 
     # Top clinics by appointment count
     top_clinics = (
-        db.session.query(Clinic.name, db.func.count(Appointment.id).label('cnt'))
+        db.session.query(Clinic, db.func.count(Appointment.id).label('appointment_count'))
         .join(Appointment, Appointment.clinic_id == Clinic.id)
-        .group_by(Clinic.name)
-        .order_by(db.desc('cnt'))
+        .group_by(Clinic.id)
+        .order_by(db.func.count(Appointment.id).desc())
         .limit(10)
         .all()
     )

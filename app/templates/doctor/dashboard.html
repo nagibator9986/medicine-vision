@@ -101,7 +101,7 @@
                             <tbody>
                                 {% for appointment in today_appointments %}
                                 <tr>
-                                    <td>{{ appointment.appointment_date.strftime('%H:%M') }}</td>
+                                    <td>{{ appointment.scheduled_time.strftime('%H:%M') }}</td>
                                     <td>{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</td>
                                     <td>
                                         {% if appointment.symptoms %}
@@ -169,8 +169,8 @@
                                 <div>
                                     <h6 class="mb-1">{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</h6>
                                     <small class="text-muted">
-                                        <i class="fas fa-calendar me-1"></i>{{ appointment.appointment_date.strftime('%d.%m.%Y') }}
-                                        <i class="fas fa-clock ms-2 me-1"></i>{{ appointment.appointment_date.strftime('%H:%M') }}
+                                        <i class="fas fa-calendar me-1"></i>{{ appointment.scheduled_time.strftime('%d.%m.%Y') }}
+                                        <i class="fas fa-clock ms-2 me-1"></i>{{ appointment.scheduled_time.strftime('%H:%M') }}
                                     </small>
                                 </div>
                                 <div>

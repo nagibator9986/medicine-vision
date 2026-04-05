@@ -1,7 +1,12 @@
-from datetime import datetime, date
+import os
+import uuid
+from datetime import datetime, date, timezone
+from functools import wraps
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort
+from flask import (Blueprint, render_template, redirect, url_for, flash,
+                   request, abort, current_app)
 from flask_login import login_required, current_user
+from werkzeug.utils import secure_filename
 
 from app import db
 from app.models import (
@@ -15,15 +20,25 @@ doctor = Blueprint('doctor', __name__, url_prefix='/doctor')
 
 def doctor_required(f):
     """Decorator that ensures the current user has the 'doctor' role."""
-    from functools import wraps
-
     @wraps(f)
     def decorated_function(*args, **kwargs):
         if current_user.role != 'doctor':
             abort(403)
         return f(*args, **kwargs)
-
     return decorated_function
+
+
+def _save_avatar(file_storage):
+    """Save an uploaded avatar and return the relative path for DB storage."""
+    filename = secure_filename(file_storage.filename)
+    if not filename:
+        return None
+    ext = filename.rsplit('.', 1)[-1].lower()
+    unique_name = f"{uuid.uuid4().hex}.{ext}"
+    upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
+    os.makedirs(upload_dir, exist_ok=True)
+    file_storage.save(os.path.join(upload_dir, unique_name))
+    return f"uploads/avatars/{unique_name}"
 
 
 # ---------------------------------------------------------------------------
@@ -95,7 +110,9 @@ def appointments():
             pass
 
     page = request.args.get('page', 1, type=int)
-    appointments = query.order_by(Appointment.scheduled_time.desc()).paginate(page=page, per_page=20, error_out=False)
+    appointments = query.order_by(
+        Appointment.scheduled_time.desc()
+    ).paginate(page=page, per_page=20, error_out=False)
 
     return render_template(
         'doctor/appointments.html',
@@ -147,13 +164,18 @@ def patient_detail(patient_id):
     if not has_appointment:
         abort(403)
 
-    medical_records = MedicalRecord.query.filter_by(patient_id=patient_id).order_by(
-        MedicalRecord.created_at.desc()
-    ).all()
+    medical_records = MedicalRecord.query.filter_by(
+        patient_id=patient_id
+    ).order_by(MedicalRecord.created_at.desc()).all()
 
-    prescriptions = Prescription.query.filter_by(patient_id=patient_id).order_by(
-        Prescription.created_at.desc()
-    ).all()
+    # Query prescriptions through Appointment (Prescription linked via appointment_id)
+    prescriptions = (
+        Prescription.query
+        .join(Appointment)
+        .filter(Appointment.patient_id == patient_id)
+        .order_by(Prescription.created_at.desc())
+        .all()
+    )
 
     return render_template(
         'doctor/patient_detail.html',
@@ -164,7 +186,7 @@ def patient_detail(patient_id):
 
 
 # ---------------------------------------------------------------------------
-# Video call
+# Video call — redirect to the videocall blueprint
 # ---------------------------------------------------------------------------
 
 @doctor.route('/appointments/<int:appointment_id>/video')
@@ -176,35 +198,26 @@ def start_video_call(appointment_id):
     if appointment.doctor_id != current_user.id:
         abort(403)
 
-    video_call = VideoCall.query.filter_by(appointment_id=appointment_id).first()
-    if not video_call:
-        video_call = VideoCall(
-            appointment_id=appointment_id,
-            doctor_id=current_user.id,
-            patient_id=appointment.patient_id,
-            started_at=datetime.utcnow(),
-        )
-        db.session.add(video_call)
+    # If a videocall already exists, go straight to it
+    if appointment.videocall:
+        return redirect(url_for('videocall.room', room_id=appointment.videocall.room_id))
 
-        # Mark appointment as in progress
-        if appointment.status not in ('in_progress', 'completed'):
-            appointment.status = 'in_progress'
+    # Create a new VideoCall using fields that actually exist in the model
+    room_id = str(uuid.uuid4())
+    video_call = VideoCall(
+        appointment_id=appointment_id,
+        room_id=room_id,
+        started_at=datetime.now(timezone.utc),
+        status='active',
+    )
+    db.session.add(video_call)
 
-        db.session.commit()
+    if appointment.status not in ('in_progress', 'completed'):
+        appointment.status = 'in_progress'
 
-    return redirect(url_for('doctor.video_room', call_id=video_call.id))
+    db.session.commit()
 
-
-@doctor.route('/video/<int:call_id>')
-@login_required
-@doctor_required
-def video_room(call_id):
-    video_call = VideoCall.query.get_or_404(call_id)
-
-    if video_call.doctor_id != current_user.id:
-        abort(403)
-
-    return render_template('doctor/video_room.html', video_call=video_call)
+    return redirect(url_for('videocall.room', room_id=room_id))
 
 
 # ---------------------------------------------------------------------------
@@ -225,12 +238,11 @@ def create_prescription(appointment_id):
     if form.validate_on_submit():
         prescription = Prescription(
             appointment_id=appointment.id,
-            doctor_id=current_user.id,
             patient_id=appointment.patient_id,
-            medication=form.medication.data,
-            dosage=form.dosage.data,
-            instructions=form.instructions.data,
-            created_at=datetime.utcnow(),
+            doctor_id=current_user.id,
+            diagnosis=form.diagnosis.data,
+            medications=form.medications.data,
+            recommendations=form.recommendations.data,
         )
         db.session.add(prescription)
         db.session.commit()
@@ -265,12 +277,23 @@ def create_medical_record(patient_id):
     form = MedicalRecordForm()
 
     if form.validate_on_submit():
+        file_path = None
+        if form.file.data and form.file.data.filename:
+            filename = secure_filename(form.file.data.filename)
+            unique_name = f"{uuid.uuid4().hex}_{filename}"
+            upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'records')
+            os.makedirs(upload_dir, exist_ok=True)
+            full_path = os.path.join(upload_dir, unique_name)
+            form.file.data.save(full_path)
+            file_path = f"uploads/records/{unique_name}"
+
         record = MedicalRecord(
             patient_id=patient_id,
             doctor_id=current_user.id,
-            diagnosis=form.diagnosis.data,
-            description=form.description.data,
-            created_at=datetime.utcnow(),
+            record_type=form.record_type.data,
+            title=form.title.data,
+            content=form.content.data,
+            file_path=file_path,
         )
         db.session.add(record)
         db.session.commit()
@@ -293,9 +316,9 @@ def create_medical_record(patient_id):
 @login_required
 @doctor_required
 def reviews():
-    doctor_reviews = Review.query.filter_by(doctor_id=current_user.id).order_by(
-        Review.created_at.desc()
-    ).all()
+    doctor_reviews = Review.query.filter_by(
+        doctor_id=current_user.id
+    ).order_by(Review.created_at.desc()).all()
 
     return render_template('doctor/reviews.html', reviews=doctor_reviews)
 
@@ -311,7 +334,18 @@ def profile():
     form = ProfileForm(obj=current_user)
 
     if form.validate_on_submit():
-        form.populate_obj(current_user)
+        current_user.first_name = form.first_name.data.strip()
+        current_user.last_name = form.last_name.data.strip()
+        current_user.phone = form.phone.data.strip() if form.phone.data else None
+        current_user.birth_date = form.birth_date.data
+        current_user.gender = form.gender.data if form.gender.data else None
+        current_user.address = form.address.data.strip() if form.address.data else None
+
+        if form.avatar.data and hasattr(form.avatar.data, 'filename') and form.avatar.data.filename:
+            saved = _save_avatar(form.avatar.data)
+            if saved:
+                current_user.avatar = saved
+
         db.session.commit()
         flash('Профиль обновлён.', 'success')
         return redirect(url_for('doctor.profile'))

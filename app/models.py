@@ -1,7 +1,12 @@
 from app import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timezone
+
+
+def _utcnow():
+    """Timezone-aware UTC now (replaces deprecated datetime.utcnow)."""
+    return datetime.now(timezone.utc)
 
 
 class User(UserMixin, db.Model):
@@ -16,8 +21,8 @@ class User(UserMixin, db.Model):
     avatar = db.Column(db.String(256))
     role = db.Column(db.String(20), nullable=False, default='patient')  # superadmin, clinic_admin, doctor, patient
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
+    updated_at = db.Column(db.DateTime, default=_utcnow, onupdate=_utcnow)
 
     # Relationships
     clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.id'), nullable=True)
@@ -62,17 +67,20 @@ class Clinic(db.Model):
     primary_color = db.Column(db.String(7), default='#0d6efd')
     secondary_color = db.Column(db.String(7), default='#6c757d')
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
+    updated_at = db.Column(db.DateTime, default=_utcnow, onupdate=_utcnow)
 
     # Working hours
     working_hours_start = db.Column(db.String(5), default='09:00')
     working_hours_end = db.Column(db.String(5), default='18:00')
     working_days = db.Column(db.String(50), default='1,2,3,4,5')  # 1=Mon, 7=Sun
 
-    users = db.relationship('User', back_populates='clinic', foreign_keys=[User.clinic_id])
-    appointments = db.relationship('Appointment', back_populates='clinic', lazy='dynamic')
-    specializations = db.relationship('ClinicSpecialization', back_populates='clinic', lazy='dynamic')
+    users = db.relationship('User', back_populates='clinic', foreign_keys=[User.clinic_id],
+                            cascade='all, delete-orphan')
+    appointments = db.relationship('Appointment', back_populates='clinic', lazy='dynamic',
+                                   cascade='all, delete-orphan')
+    specializations = db.relationship('ClinicSpecialization', back_populates='clinic', lazy='dynamic',
+                                      cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Clinic {self.name}>'
@@ -100,13 +108,15 @@ class Appointment(db.Model):
     status = db.Column(db.String(20), default='scheduled')  # scheduled, in_progress, completed, cancelled
     symptoms = db.Column(db.Text)
     notes = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     patient = db.relationship('User', foreign_keys=[patient_id], backref='patient_appointments')
     doctor = db.relationship('User', foreign_keys=[doctor_id], backref='doctor_appointments')
     clinic = db.relationship('Clinic', back_populates='appointments')
-    videocall = db.relationship('VideoCall', back_populates='appointment', uselist=False)
-    prescription = db.relationship('Prescription', back_populates='appointment', uselist=False)
+    videocall = db.relationship('VideoCall', back_populates='appointment', uselist=False,
+                                cascade='all, delete-orphan')
+    prescription = db.relationship('Prescription', back_populates='appointment', uselist=False,
+                                   cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Appointment {self.id}>'
@@ -136,12 +146,16 @@ class Prescription(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
     diagnosis = db.Column(db.Text)
     medications = db.Column(db.Text)
     recommendations = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     appointment = db.relationship('Appointment', back_populates='prescription')
+    patient = db.relationship('User', foreign_keys=[patient_id], backref='prescriptions_received')
+    doctor_rel = db.relationship('User', foreign_keys=[doctor_id], backref='prescriptions_written')
 
 
 class MedicalRecord(db.Model):
@@ -149,12 +163,12 @@ class MedicalRecord(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    record_type = db.Column(db.String(50))  # examination, lab_result, imaging, note
+    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    record_type = db.Column(db.String(50))  # examination, lab_result, imaging, note, self_log
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text)
     file_path = db.Column(db.String(256))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     patient = db.relationship('User', foreign_keys=[patient_id], backref='medical_records')
     doctor = db.relationship('User', foreign_keys=[doctor_id], backref='created_records')
@@ -167,7 +181,7 @@ class ChatMessage(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     role = db.Column(db.String(20), nullable=False)  # user, assistant
     content = db.Column(db.Text, nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     user = db.relationship('User', backref='chat_messages')
 
@@ -182,7 +196,7 @@ class Notification(db.Model):
     type = db.Column(db.String(20), default='info')  # info, success, warning, danger
     is_read = db.Column(db.Boolean, default=False)
     link = db.Column(db.String(256))
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     user = db.relationship('User', backref='notifications')
 
@@ -196,7 +210,7 @@ class Review(db.Model):
     appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
     rating = db.Column(db.Integer, nullable=False)  # 1-5
     comment = db.Column(db.Text)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=_utcnow)
 
     patient = db.relationship('User', foreign_keys=[patient_id], backref='given_reviews')
     doctor = db.relationship('User', foreign_keys=[doctor_id], backref='received_reviews')

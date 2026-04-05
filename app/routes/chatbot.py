@@ -1,9 +1,12 @@
+import logging
+import os
+
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app import db, csrf
-from app.models import ChatMessage, User
-from datetime import datetime
-import os
+from app.models import ChatMessage
+
+logger = logging.getLogger(__name__)
 
 chatbot_bp = Blueprint('chatbot', __name__)
 
@@ -14,6 +17,8 @@ SYSTEM_PROMPT = (
     "Отвечайте на русском языке. Будьте вежливы и профессиональны. "
     "НЕ ставьте диагнозы, а рекомендуйте обратиться к специалисту."
 )
+
+MAX_HISTORY_MESSAGES = 50  # Limit messages sent to OpenAI to control token usage
 
 
 @chatbot_bp.route('/')
@@ -52,9 +57,15 @@ def send():
     db.session.add(user_message)
     db.session.commit()
 
-    # Build conversation history for OpenAI
-    history = ChatMessage.query.filter_by(user_id=current_user.id)\
-        .order_by(ChatMessage.created_at.asc()).all()
+    # Build conversation history for OpenAI — limited to last N messages
+    history = (
+        ChatMessage.query
+        .filter_by(user_id=current_user.id)
+        .order_by(ChatMessage.created_at.desc())
+        .limit(MAX_HISTORY_MESSAGES)
+        .all()
+    )
+    history.reverse()  # chronological order
 
     messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
     for msg in history:
@@ -64,16 +75,18 @@ def send():
     assistant_text = 'Извините, сервис временно недоступен. Попробуйте позже.'
     try:
         import openai
-        client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
-        response = client.chat.completions.create(
-            model='gpt-4o-mini',
-            messages=messages,
-            max_tokens=1000,
-            temperature=0.7
-        )
-        assistant_text = response.choices[0].message.content
-    except Exception:
-        pass
+        api_key = os.environ.get('OPENAI_API_KEY', '')
+        if api_key and api_key != 'your-openai-api-key-here':
+            client = openai.OpenAI(api_key=api_key)
+            response = client.chat.completions.create(
+                model='gpt-4o-mini',
+                messages=messages,
+                max_tokens=1000,
+                temperature=0.7
+            )
+            assistant_text = response.choices[0].message.content
+    except Exception as e:
+        logger.error('OpenAI chatbot error: %s', e)
 
     # Save assistant response
     assistant_message = ChatMessage(

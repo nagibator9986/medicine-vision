@@ -57,8 +57,8 @@
                         {% for appointment in appointments.items %}
                         <tr>
                             <td>
-                                <div class="fw-semibold">{{ appointment.appointment_date.strftime('%d.%m.%Y') }}</div>
-                                <small class="text-muted">{{ appointment.appointment_date.strftime('%H:%M') }}</small>
+                                <div class="fw-semibold">{{ appointment.scheduled_time.strftime('%d.%m.%Y') }}</div>
+                                <small class="text-muted">{{ appointment.scheduled_time.strftime('%H:%M') }}</small>
                             </td>
                             <td>{{ appointment.patient.first_name }} {{ appointment.patient.last_name }}</td>
                             <td>
