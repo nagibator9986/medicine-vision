@@ -83,6 +83,10 @@ def index():
         recent_records=recent_records,
         notifications=notifications,
         health_summary=health_summary,
+        total_appointments=total_appointments,
+        upcoming_count=len(upcoming_appointments),
+        records_count=total_records,
+        unread_notifications=len(notifications),
     )
 
 
@@ -192,8 +196,6 @@ def _generate_time_slots(clinic, selected_date, doctor_id):
 def book_appointment():
     form = AppointmentForm()
 
-    clinic = db.session.get(Clinic, current_user.clinic_id) if current_user.clinic_id else None
-
     # Populate doctor choices
     doctor_query = User.query.filter_by(role='doctor', is_active=True)
     if current_user.clinic_id:
@@ -216,6 +218,13 @@ def book_appointment():
                 selected_date = datetime.strptime(date_str, '%Y-%m-%d').date()
             except ValueError:
                 selected_date = None
+
+    # Get clinic from the selected doctor (allows patients without clinic_id to book)
+    clinic = None
+    if doctor_id:
+        selected_doctor = db.session.get(User, doctor_id)
+        if selected_doctor and selected_doctor.clinic_id:
+            clinic = db.session.get(Clinic, selected_doctor.clinic_id)
 
     if selected_date and doctor_id and clinic:
         time_slots = _generate_time_slots(clinic, selected_date, doctor_id)
@@ -247,18 +256,16 @@ def book_appointment():
                 'patient/book_appointment.html', form=form, time_slots=time_slots
             )
 
+        doctor = db.session.get(User, doctor_id)
         appointment = Appointment(
             patient_id=current_user.id,
             doctor_id=doctor_id,
-            clinic_id=current_user.clinic_id,
+            clinic_id=doctor.clinic_id if doctor else current_user.clinic_id,
             scheduled_time=scheduled_dt,
             symptoms=form.symptoms.data,
             status='scheduled',
         )
         db.session.add(appointment)
-
-        # Notify the doctor
-        doctor = db.session.get(User, doctor_id)
         notification = Notification(
             user_id=doctor_id,
             title='Новая запись на приём',
@@ -293,7 +300,11 @@ def api_time_slots():
     except ValueError:
         return jsonify([])
 
-    clinic = db.session.get(Clinic, current_user.clinic_id) if current_user.clinic_id else None
+    # Get clinic from the selected doctor (allows patients without clinic_id to book)
+    clinic = None
+    doctor = db.session.get(User, doctor_id)
+    if doctor and doctor.clinic_id:
+        clinic = db.session.get(Clinic, doctor.clinic_id)
     slots = _generate_time_slots(clinic, selected_date, doctor_id) if clinic else []
     return jsonify(slots)
 

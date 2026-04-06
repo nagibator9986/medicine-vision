@@ -86,7 +86,7 @@
                         <div class="form-control-plaintext fs-5">
                             <span class="badge bg-primary bg-opacity-10 text-primary px-3 py-2">
                                 <i class="fas fa-tag me-1"></i>
-                                {{ current_user.doctor_profile.specialization if current_user.doctor_profile and current_user.doctor_profile.specialization else 'Не указана' }}
+                                {{ current_user.specialization if current_user.specialization else 'Не указана' }}
                             </span>
                         </div>
                     </div>
@@ -94,14 +94,14 @@
                         <label class="form-label fw-semibold text-muted">Опыт работы</label>
                         <div class="form-control-plaintext">
                             <i class="fas fa-briefcase me-1 text-success"></i>
-                            {{ current_user.doctor_profile.experience if current_user.doctor_profile and current_user.doctor_profile.experience else 'Не указан' }}
+                            {{ (current_user.experience_years|string + ' лет') if current_user.experience_years else 'Не указан' }}
                         </div>
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold text-muted">О себе</label>
                         <div class="form-control-plaintext">
-                            {% if current_user.doctor_profile and current_user.doctor_profile.bio %}
-                                {{ current_user.doctor_profile.bio }}
+                            {% if current_user.bio %}
+                                {{ current_user.bio }}
                             {% else %}
                                 <span class="text-muted fst-italic">Не указано</span>
                             {% endif %}

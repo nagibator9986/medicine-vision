@@ -91,7 +91,7 @@ def dashboard():
 @clinic_admin_required
 def doctors():
     doctors_list = User.query.filter_by(
-        clinic_id=current_user.clinic_id, role='doctor'
+        clinic_id=current_user.clinic_id, role='doctor', is_active=True
     ).order_by(User.created_at.desc()).all()
     return render_template('clinic/doctors.html', doctors=doctors_list)
 

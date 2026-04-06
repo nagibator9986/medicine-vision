@@ -63,7 +63,7 @@
                             <td>{{ clinic.address or '—' }}</td>
                             <td>{{ clinic.phone or '—' }}</td>
                             <td class="text-center">
-                                <span class="badge bg-info">{{ clinic.doctors | length }}</span>
+                                <span class="badge bg-info">{{ clinic.users | selectattr('role', 'equalto', 'doctor') | list | length }}</span>
                             </td>
                             <td class="text-center">
                                 <form method="POST" action="{{ url_for('admin.toggle_clinic', clinic_id=clinic.id) }}" class="d-inline">
@@ -88,30 +88,6 @@
                                         <i class="fas fa-trash"></i>
                                     </button>
                                 </div>
-
-                                <!-- Delete Modal -->
-                                <div class="modal fade" id="deleteModal{{ clinic.id }}" tabindex="-1">
-                                    <div class="modal-dialog">
-                                        <div class="modal-content">
-                                            <div class="modal-header">
-                                                <h5 class="modal-title">Подтверждение удаления</h5>
-                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                            </div>
-                                            <div class="modal-body text-start">
-                                                Вы уверены, что хотите удалить клинику <strong>{{ clinic.name }}</strong>? Это действие нельзя отменить.
-                                            </div>
-                                            <div class="modal-footer">
-                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
-                                                <form method="POST" action="{{ url_for('admin.delete_clinic', clinic_id=clinic.id) }}" class="d-inline">
-                                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                                    <button type="submit" class="btn btn-danger">
-                                                        <i class="fas fa-trash me-1"></i>Удалить
-                                                    </button>
-                                                </form>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
                             </td>
                         </tr>
                         {% else %}
@@ -126,6 +102,32 @@
                 </table>
             </div>
         </div>
+
+        <!-- Delete Modals (placed outside table to prevent layout issues) -->
+        {% for clinic in clinics.items %}
+        <div class="modal fade" id="deleteModal{{ clinic.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Подтверждение удаления</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body text-start">
+                        Вы уверены, что хотите удалить клинику <strong>{{ clinic.name }}</strong>? Это действие нельзя отменить.
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                        <form method="POST" action="{{ url_for('admin.delete_clinic', clinic_id=clinic.id) }}" class="d-inline">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash me-1"></i>Удалить
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
 
         <!-- Pagination -->
         {% if clinics.pages > 1 %}

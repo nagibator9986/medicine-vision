@@ -1,6 +1,6 @@
-from flask import Flask, redirect, url_for
+from flask import Flask, redirect, url_for, render_template
 from flask_sqlalchemy import SQLAlchemy
-from flask_login import LoginManager
+from flask_login import LoginManager, current_user
 from flask_migrate import Migrate
 from flask_socketio import SocketIO
 from flask_wtf.csrf import CSRFProtect
@@ -58,7 +58,10 @@ def create_app(config_class=Config):
 
     @app.route('/')
     def index():
-        return redirect(url_for('auth.login'))
+        if current_user.is_authenticated:
+            from app.routes.auth import ROLE_REDIRECTS
+            return redirect(url_for(ROLE_REDIRECTS.get(current_user.role, 'auth.login')))
+        return render_template('landing.html')
 
     @app.context_processor
     def inject_now():

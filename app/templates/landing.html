@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MediPlatform — Телемедицина Казахстана</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary-start: #667eea;
+            --primary-end: #764ba2;
+            --accent: #10b981;
+            --accent-hover: #059669;
+            --dark: #1e293b;
+            --gray-50: #f8fafc;
+            --gray-100: #f1f5f9;
+            --gray-400: #94a3b8;
+            --gray-600: #475569;
+            --gray-800: #1e293b;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            color: var(--gray-800);
+            overflow-x: hidden;
+        }
+
+        /* Navbar */
+        .navbar-landing {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            padding: 1rem 0;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .navbar-landing.scrolled {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+
+        .navbar-brand-text {
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .navbar-landing .nav-link {
+            color: rgba(255, 255, 255, 0.85);
+            font-weight: 500;
+            transition: color 0.2s;
+        }
+
+        .navbar-landing.scrolled .nav-link {
+            color: var(--gray-600);
+        }
+
+        .navbar-landing .nav-link:hover {
+            color: #fff;
+        }
+
+        .navbar-landing.scrolled .nav-link:hover {
+            color: var(--primary-start);
+        }
+
+        .btn-nav-login {
+            border: 2px solid rgba(255, 255, 255, 0.6);
+            color: #fff;
+            border-radius: 50px;
+            padding: 0.4rem 1.5rem;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .navbar-landing.scrolled .btn-nav-login {
+            border-color: var(--primary-start);
+            color: var(--primary-start);
+        }
+
+        .btn-nav-login:hover {
+            background: #fff;
+            color: var(--primary-start);
+        }
+
+        /* Hero */
+        .hero {
+            min-height: 100vh;
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            display: flex;
+            align-items: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 800px;
+            height: 800px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, rgba(16, 185, 129, 0.15) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .hero-content {
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1.15;
+            margin-bottom: 1.5rem;
+        }
+
+        .hero h1 span {
+            background: linear-gradient(90deg, #a5f3fc, var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.85);
+            max-width: 540px;
+            line-height: 1.7;
+            margin-bottom: 2rem;
+        }
+
+        .btn-hero-primary {
+            background: var(--accent);
+            color: #fff;
+            border: none;
+            border-radius: 50px;
+            padding: 0.85rem 2.2rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-hero-primary:hover {
+            background: var(--accent-hover);
+            color: #fff;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.35);
+        }
+
+        .btn-hero-secondary {
+            background: rgba(255, 255, 255, 0.15);
+            color: #fff;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            border-radius: 50px;
+            padding: 0.85rem 2.2rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            backdrop-filter: blur(4px);
+        }
+
+        .btn-hero-secondary:hover {
+            background: #fff;
+            color: var(--primary-start);
+            border-color: #fff;
+            transform: translateY(-2px);
+        }
+
+        .hero-illustration {
+            position: relative;
+            z-index: 2;
+        }
+
+        .hero-card {
+            background: rgba(255, 255, 255, 0.12);
+            backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            padding: 2.5rem;
+            color: #fff;
+        }
+
+        .hero-card-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .hero-card-item {
+            padding: 0.75rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .hero-card-item:last-child {
+            border-bottom: none;
+        }
+
+        .hero-card-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        /* Scroll animations */
+        .fade-up {
+            opacity: 0;
+            transform: translateY(40px);
+            transition: opacity 0.7s ease, transform 0.7s ease;
+        }
+
+        .fade-up.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Features */
+        .features {
+            padding: 6rem 0;
+            background: var(--gray-50);
+        }
+
+        .section-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+            color: var(--primary-start);
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 0.4rem 1rem;
+            border-radius: 50px;
+            margin-bottom: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .section-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--dark);
+            margin-bottom: 1rem;
+        }
+
+        .section-subtitle {
+            font-size: 1.1rem;
+            color: var(--gray-600);
+            max-width: 600px;
+            margin: 0 auto 3.5rem;
+        }
+
+        .feature-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 2rem;
+            height: 100%;
+            border: 1px solid rgba(0, 0, 0, 0.04);
+            transition: all 0.35s ease;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary-start), var(--primary-end));
+            opacity: 0;
+            transition: opacity 0.35s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-6px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.08);
+        }
+
+        .feature-card:hover::before {
+            opacity: 1;
+        }
+
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+
+        .feature-icon.purple {
+            background: rgba(102, 126, 234, 0.1);
+            color: var(--primary-start);
+        }
+
+        .feature-icon.emerald {
+            background: rgba(16, 185, 129, 0.1);
+            color: var(--accent);
+        }
+
+        .feature-icon.violet {
+            background: rgba(118, 75, 162, 0.1);
+            color: var(--primary-end);
+        }
+
+        .feature-icon.cyan {
+            background: rgba(6, 182, 212, 0.1);
+            color: #06b6d4;
+        }
+
+        .feature-icon.rose {
+            background: rgba(244, 63, 94, 0.1);
+            color: #f43f5e;
+        }
+
+        .feature-icon.amber {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+        }
+
+        .feature-card h5 {
+            font-weight: 700;
+            font-size: 1.15rem;
+            margin-bottom: 0.5rem;
+            color: var(--dark);
+        }
+
+        .feature-card p {
+            color: var(--gray-600);
+            font-size: 0.95rem;
+            line-height: 1.6;
+            margin: 0;
+        }
+
+        /* Stats */
+        .stats {
+            padding: 5rem 0;
+            background: linear-gradient(135deg, var(--primary-start) 0%, var(--primary-end) 100%);
+            position: relative;
+        }
+
+        .stat-item {
+            text-align: center;
+            padding: 1.5rem;
+        }
+
+        .stat-number {
+            font-size: 3rem;
+            font-weight: 800;
+            color: #fff;
+            line-height: 1;
+            margin-bottom: 0.5rem;
+        }
+
+        .stat-label {
+            font-size: 1rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-weight: 500;
+        }
+
+        /* Clinics section */
+        .clinics {
+            padding: 6rem 0;
+            background: #fff;
+        }
+
+        .clinic-benefits {
+            list-style: none;
+            padding: 0;
+        }
+
+        .clinic-benefits li {
+            padding: 0.75rem 0;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            font-size: 1.05rem;
+            color: var(--gray-600);
+        }
+
+        .clinic-benefits li i {
+            color: var(--accent);
+            margin-top: 4px;
+            flex-shrink: 0;
+        }
+
+        .clinic-cta-card {
+            background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+            border-radius: 24px;
+            padding: 3rem;
+            color: #fff;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .clinic-cta-card::before {
+            content: '';
+            position: absolute;
+            top: -40%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+
+        .clinic-cta-card h3 {
+            font-weight: 700;
+            font-size: 1.75rem;
+            margin-bottom: 1rem;
+            position: relative;
+        }
+
+        .clinic-cta-card p {
+            color: rgba(255, 255, 255, 0.85);
+            font-size: 1.05rem;
+            line-height: 1.7;
+            position: relative;
+        }
+
+        .btn-clinic {
+            background: #fff;
+            color: var(--primary-start);
+            border: none;
+            border-radius: 50px;
+            padding: 0.85rem 2.2rem;
+            font-size: 1.05rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            text-decoration: none;
+            display: inline-block;
+            position: relative;
+        }
+
+        .btn-clinic:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.2);
+            color: var(--primary-end);
+        }
+
+        /* How it works */
+        .how-it-works {
+            padding: 6rem 0;
+            background: var(--gray-50);
+        }
+
+        .step-card {
+            text-align: center;
+            padding: 2rem 1.5rem;
+        }
+
+        .step-number {
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
+            color: #fff;
+            font-weight: 800;
+            font-size: 1.25rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.25rem;
+        }
+
+        .step-card h5 {
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .step-card p {
+            color: var(--gray-600);
+            font-size: 0.95rem;
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--dark);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 4rem 0 2rem;
+        }
+
+        .footer h5 {
+            color: #fff;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            font-size: 1.1rem;
+        }
+
+        .footer-links {
+            list-style: none;
+            padding: 0;
+        }
+
+        .footer-links li {
+            margin-bottom: 0.6rem;
+        }
+
+        .footer-links a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            transition: color 0.2s;
+            font-size: 0.95rem;
+        }
+
+        .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        .footer-brand {
+            font-weight: 800;
+            font-size: 1.5rem;
+            background: linear-gradient(135deg, var(--primary-start), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+            padding-top: 1.5rem;
+            margin-top: 3rem;
+        }
+
+        .social-icons a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.08);
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            margin-left: 0.5rem;
+            transition: all 0.3s;
+        }
+
+        .social-icons a:hover {
+            background: var(--accent);
+            color: #fff;
+        }
+
+        /* Responsive */
+        @media (max-width: 991px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
+
+            .hero-illustration {
+                margin-top: 3rem;
+            }
+
+            .section-title {
+                font-size: 2rem;
+            }
+
+            .stat-number {
+                font-size: 2.25rem;
+            }
+        }
+
+        @media (max-width: 575px) {
+            .hero {
+                padding-top: 6rem;
+                min-height: auto;
+                padding-bottom: 4rem;
+            }
+
+            .hero h1 {
+                font-size: 2rem;
+            }
+
+            .hero p {
+                font-size: 1rem;
+            }
+
+            .hero-card {
+                padding: 1.5rem;
+            }
+
+            .section-title {
+                font-size: 1.75rem;
+            }
+
+            .clinic-cta-card {
+                padding: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<!-- Navbar -->
+<nav class="navbar-landing" id="navbar">
+    <div class="container">
+        <div class="d-flex align-items-center justify-content-between">
+            <a href="/" class="navbar-brand-text text-decoration-none">
+                <i class="fas fa-heartbeat me-2"></i>MediPlatform
+            </a>
+            <div class="d-none d-md-flex align-items-center gap-4">
+                <a href="#features" class="nav-link">Возможности</a>
+                <a href="#how-it-works" class="nav-link">Как это работает</a>
+                <a href="#clinics" class="nav-link">Для клиник</a>
+                <a href="/login" class="btn btn-nav-login">Войти</a>
+            </div>
+            <button class="btn d-md-none" style="color: #fff; font-size: 1.25rem;" onclick="document.getElementById('mobileMenu').classList.toggle('d-none')">
+                <i class="fas fa-bars"></i>
+            </button>
+        </div>
+        <div id="mobileMenu" class="d-none d-md-none mt-3 pb-2">
+            <a href="#features" class="nav-link d-block py-2">Возможности</a>
+            <a href="#how-it-works" class="nav-link d-block py-2">Как это работает</a>
+            <a href="#clinics" class="nav-link d-block py-2">Для клиник</a>
+            <a href="/login" class="btn btn-nav-login mt-2">Войти</a>
+        </div>
+    </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero">
+    <div class="container">
+        <div class="row align-items-center">
+            <div class="col-lg-6 hero-content">
+                <h1>
+                    Современная<br>
+                    <span>телемедицина</span><br>
+                    Казахстана
+                </h1>
+                <p>
+                    Консультации с лучшими врачами онлайн, запись на прием,
+                    электронные рецепты и AI-помощник — все в одной платформе.
+                </p>
+                <div class="d-flex flex-wrap gap-3">
+                    <a href="/register" class="btn-hero-primary">
+                        Зарегистрироваться <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                    <a href="/login" class="btn-hero-secondary">
+                        Войти
+                    </a>
+                </div>
+            </div>
+            <div class="col-lg-5 offset-lg-1 hero-illustration">
+                <div class="hero-card">
+                    <div class="hero-card-icon">
+                        <i class="fas fa-stethoscope"></i>
+                    </div>
+                    <h5 class="mb-3" style="font-weight: 700;">Ваше здоровье онлайн</h5>
+                    <div class="hero-card-item">
+                        <span class="hero-card-dot" style="background: var(--accent);"></span>
+                        <span>Видеоконсультации 24/7</span>
+                    </div>
+                    <div class="hero-card-item">
+                        <span class="hero-card-dot" style="background: #a5f3fc;"></span>
+                        <span>AI-чатбот для первичной помощи</span>
+                    </div>
+                    <div class="hero-card-item">
+                        <span class="hero-card-dot" style="background: #c4b5fd;"></span>
+                        <span>Электронные рецепты</span>
+                    </div>
+                    <div class="hero-card-item">
+                        <span class="hero-card-dot" style="background: #fbbf24;"></span>
+                        <span>Медицинская карта онлайн</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Features -->
+<section class="features" id="features">
+    <div class="container">
+        <div class="text-center">
+            <div class="section-badge">Возможности</div>
+            <h2 class="section-title">Все для вашего здоровья</h2>
+            <p class="section-subtitle">
+                MediPlatform объединяет передовые технологии и квалифицированных врачей
+                для заботы о вашем здоровье.
+            </p>
+        </div>
+        <div class="row g-4">
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon purple">
+                        <i class="fas fa-video"></i>
+                    </div>
+                    <h5>Видеоконсультации</h5>
+                    <p>Общайтесь с врачом лицом к лицу через защищенный видеочат. Без очередей и поездок в клинику.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon emerald">
+                        <i class="fas fa-robot"></i>
+                    </div>
+                    <h5>AI-чатбот</h5>
+                    <p>Интеллектуальный помощник проведет первичный опрос симптомов и поможет определить нужного специалиста.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon violet">
+                        <i class="fas fa-prescription"></i>
+                    </div>
+                    <h5>Электронные рецепты</h5>
+                    <p>Получайте рецепты от врачей в электронном формате. Быстро и удобно — прямо в вашем личном кабинете.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon cyan">
+                        <i class="fas fa-heartbeat"></i>
+                    </div>
+                    <h5>Трекер здоровья</h5>
+                    <p>Отслеживайте давление, пульс, вес и другие показатели. Визуализация данных поможет контролировать здоровье.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon rose">
+                        <i class="fas fa-calendar-check"></i>
+                    </div>
+                    <h5>Запись на прием</h5>
+                    <p>Записывайтесь к врачу онлайн в удобное время. Выбирайте специалиста и клинику за пару кликов.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon amber">
+                        <i class="fas fa-folder-open"></i>
+                    </div>
+                    <h5>Медицинские записи</h5>
+                    <p>Вся история обращений, диагнозы и результаты анализов — в одном защищенном месте с доступом 24/7.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- How it works -->
+<section class="how-it-works" id="how-it-works">
+    <div class="container">
+        <div class="text-center">
+            <div class="section-badge">Просто и удобно</div>
+            <h2 class="section-title">Как это работает</h2>
+            <p class="section-subtitle">
+                Начните заботиться о здоровье за три простых шага.
+            </p>
+        </div>
+        <div class="row">
+            <div class="col-md-4 fade-up">
+                <div class="step-card">
+                    <div class="step-number">1</div>
+                    <h5>Зарегистрируйтесь</h5>
+                    <p>Создайте аккаунт за минуту, заполнив основные данные и выбрав клинику.</p>
+                </div>
+            </div>
+            <div class="col-md-4 fade-up">
+                <div class="step-card">
+                    <div class="step-number">2</div>
+                    <h5>Выберите врача</h5>
+                    <p>Найдите подходящего специалиста или задайте вопрос AI-помощнику для рекомендации.</p>
+                </div>
+            </div>
+            <div class="col-md-4 fade-up">
+                <div class="step-card">
+                    <div class="step-number">3</div>
+                    <h5>Получите помощь</h5>
+                    <p>Проведите видеоконсультацию, получите рецепт и рекомендации — не выходя из дома.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Stats -->
+<section class="stats">
+    <div class="container">
+        <div class="row">
+            <div class="col-6 col-md-3 fade-up">
+                <div class="stat-item">
+                    <div class="stat-number">1 000+</div>
+                    <div class="stat-label">Пациентов</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 fade-up">
+                <div class="stat-item">
+                    <div class="stat-number">50+</div>
+                    <div class="stat-label">Врачей</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 fade-up">
+                <div class="stat-item">
+                    <div class="stat-number">15+</div>
+                    <div class="stat-label">Клиник</div>
+                </div>
+            </div>
+            <div class="col-6 col-md-3 fade-up">
+                <div class="stat-item">
+                    <div class="stat-number">24/7</div>
+                    <div class="stat-label">Поддержка</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Clinics -->
+<section class="clinics" id="clinics">
+    <div class="container">
+        <div class="row align-items-center g-5">
+            <div class="col-lg-6 fade-up">
+                <div class="section-badge">Для клиник</div>
+                <h2 class="section-title">Подключите вашу клинику</h2>
+                <p style="color: var(--gray-600); font-size: 1.05rem; line-height: 1.7; margin-bottom: 1.5rem;">
+                    MediPlatform помогает клиникам расширить охват пациентов и оптимизировать рабочие процессы
+                    с помощью современных цифровых инструментов.
+                </p>
+                <ul class="clinic-benefits">
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Онлайн-расписание и управление записями пациентов</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Встроенная видеосвязь для телеконсультаций</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Электронный документооборот и рецепты</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Аналитика и отчеты для руководства</span>
+                    </li>
+                    <li>
+                        <i class="fas fa-check-circle"></i>
+                        <span>Техническая поддержка и обучение персонала</span>
+                    </li>
+                </ul>
+            </div>
+            <div class="col-lg-6 fade-up">
+                <div class="clinic-cta-card">
+                    <h3><i class="fas fa-hospital me-2"></i>Присоединяйтесь к MediPlatform</h3>
+                    <p class="mb-4">
+                        Зарегистрируйте вашу клинику и получите доступ ко всем инструментам
+                        телемедицинской платформы. Мы поможем с настройкой и интеграцией.
+                    </p>
+                    <a href="/register" class="btn-clinic">
+                        Зарегистрировать клинику <i class="fas fa-arrow-right ms-2"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+    <div class="container">
+        <div class="row g-4">
+            <div class="col-lg-4 col-md-6">
+                <div class="footer-brand mb-3">
+                    <i class="fas fa-heartbeat me-2"></i>MediPlatform
+                </div>
+                <p style="font-size: 0.95rem; line-height: 1.7; max-width: 300px;">
+                    Современная телемедицинская платформа для пациентов и клиник Казахстана.
+                </p>
+            </div>
+            <div class="col-lg-2 col-md-6">
+                <h5>Платформа</h5>
+                <ul class="footer-links">
+                    <li><a href="#features">Возможности</a></li>
+                    <li><a href="#how-it-works">Как это работает</a></li>
+                    <li><a href="#clinics">Для клиник</a></li>
+                    <li><a href="/register">Регистрация</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-2 col-md-6">
+                <h5>Поддержка</h5>
+                <ul class="footer-links">
+                    <li><a href="#">Помощь</a></li>
+                    <li><a href="#">Контакты</a></li>
+                    <li><a href="#">FAQ</a></li>
+                </ul>
+            </div>
+            <div class="col-lg-4 col-md-6">
+                <h5>Контакты</h5>
+                <ul class="footer-links">
+                    <li><i class="fas fa-envelope me-2" style="color: var(--gray-400);"></i> info@mediplatform.kz</li>
+                    <li><i class="fas fa-phone me-2" style="color: var(--gray-400);"></i> +7 (727) 123-45-67</li>
+                    <li><i class="fas fa-map-marker-alt me-2" style="color: var(--gray-400);"></i> Алматы, Казахстан</li>
+                </ul>
+            </div>
+        </div>
+        <div class="footer-bottom d-flex flex-wrap justify-content-between align-items-center">
+            <p class="mb-0" style="font-size: 0.9rem;">
+                &copy; 2026 MediPlatform. Все права защищены.
+            </p>
+            <div class="social-icons">
+                <a href="#"><i class="fab fa-telegram-plane"></i></a>
+                <a href="#"><i class="fab fa-instagram"></i></a>
+                <a href="#"><i class="fab fa-youtube"></i></a>
+            </div>
+        </div>
+    </div>
+</footer>
+
+<script>
+    // Navbar scroll effect
+    window.addEventListener('scroll', function () {
+        const navbar = document.getElementById('navbar');
+        if (window.scrollY > 50) {
+            navbar.classList.add('scrolled');
+        } else {
+            navbar.classList.remove('scrolled');
+        }
+    });
+
+    // Scroll reveal animations
+    const observer = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+                entry.target.classList.add('visible');
+            }
+        });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.fade-up').forEach(function (el) {
+        observer.observe(el);
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
+        anchor.addEventListener('click', function (e) {
+            e.preventDefault();
+            var target = document.querySelector(this.getAttribute('href'));
+            if (target) {
+                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+            // Close mobile menu
+            document.getElementById('mobileMenu').classList.add('d-none');
+        });
+    });
+</script>
+</body>
+</html>

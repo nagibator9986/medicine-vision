@@ -1,8 +1,10 @@
+from datetime import date
+
 from flask_wtf import FlaskForm
 from wtforms import (StringField, PasswordField, TextAreaField, SelectField,
                      DateField, FloatField, IntegerField, BooleanField,
                      TimeField, HiddenField)
-from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, NumberRange
+from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, NumberRange, ValidationError
 from flask_wtf.file import FileField, FileAllowed
 
 
@@ -13,13 +15,35 @@ class LoginForm(FlaskForm):
 
 class PatientRegistrationForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Пароль', validators=[DataRequired(), Length(min=6)])
+    password = PasswordField('Пароль', validators=[DataRequired(), Length(min=8, message='Пароль должен содержать минимум 8 символов.')])
     confirm_password = PasswordField('Подтвердите пароль', validators=[DataRequired(), EqualTo('password')])
     first_name = StringField('Имя', validators=[DataRequired(), Length(max=64)])
     last_name = StringField('Фамилия', validators=[DataRequired(), Length(max=64)])
     phone = StringField('Телефон', validators=[Optional(), Length(max=20)])
     birth_date = DateField('Дата рождения', validators=[Optional()])
     gender = SelectField('Пол', choices=[('', 'Выберите'), ('male', 'Мужской'), ('female', 'Женский')], validators=[Optional()])
+
+    def validate_password(self, field):
+        if not any(ch.isdigit() for ch in field.data):
+            raise ValidationError('Пароль должен содержать хотя бы одну цифру.')
+
+    def validate_phone(self, field):
+        if field.data:
+            phone = field.data.strip()
+            if phone and not phone.startswith('+7'):
+                raise ValidationError('Телефон должен начинаться с +7.')
+            if phone and (len(phone) < 11 or len(phone) > 16):
+                raise ValidationError('Некорректная длина номера телефона.')
+
+    def validate_birth_date(self, field):
+        if field.data:
+            today = date.today()
+            if field.data > today:
+                raise ValidationError('Дата рождения не может быть в будущем.')
+            # Check at least 1 year old
+            one_year_ago = today.replace(year=today.year - 1)
+            if field.data > one_year_ago:
+                raise ValidationError('Пациент должен быть старше 1 года.')
 
 
 class DoctorForm(FlaskForm):

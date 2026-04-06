@@ -6,8 +6,8 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.models import User, Clinic, Appointment, VideoCall, ClinicSpecialization
-from app.forms import ClinicForm
+from app.models import User, Clinic, Appointment, VideoCall, ClinicSpecialization, Notification
+from app.forms import ClinicForm, ProfileForm
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
@@ -26,12 +26,12 @@ def superadmin_required(f):
 
 
 def save_logo(file):
-    """Save an uploaded logo file and return the stored filename."""
+    """Save an uploaded logo file and return the stored filename with 'clinics/' prefix."""
     filename = secure_filename(file.filename)
     # Add timestamp to avoid collisions
     name, ext = os.path.splitext(filename)
     filename = f"{name}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
-    upload_dir = os.path.join(current_app.root_path, 'static', 'uploads')
+    upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'clinics')
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, filename))
     return filename
@@ -159,6 +159,12 @@ def create_clinic():
 def edit_clinic(clinic_id):
     clinic = Clinic.query.get_or_404(clinic_id)
     form = ClinicForm(obj=clinic)
+
+    # Remove admin fields — they are only needed when creating a new clinic
+    del form.admin_email
+    del form.admin_password
+    del form.admin_first_name
+    del form.admin_last_name
 
     if form.validate_on_submit():
         clinic.name = form.name.data
@@ -302,3 +308,91 @@ def analytics():
         new_users_count=new_users_count,
         top_clinics=top_clinics,
     )
+
+
+# ---------------------------------------------------------------------------
+# Users – toggle active status
+# ---------------------------------------------------------------------------
+@admin.route('/users/<int:user_id>/toggle', methods=['POST'])
+@login_required
+@superadmin_required
+def toggle_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role == 'superadmin':
+        flash('Нельзя изменить статус суперадмина.', 'danger')
+        return redirect(url_for('admin.users'))
+    user.is_active = not user.is_active
+    db.session.commit()
+    status = 'активирован' if user.is_active else 'деактивирован'
+    flash(f'Пользователь "{user.full_name}" {status}.', 'info')
+    return redirect(url_for('admin.users'))
+
+
+# ---------------------------------------------------------------------------
+# Users – delete
+# ---------------------------------------------------------------------------
+@admin.route('/users/<int:user_id>/delete', methods=['POST'])
+@login_required
+@superadmin_required
+def delete_user(user_id):
+    user = User.query.get_or_404(user_id)
+    if user.role == 'superadmin':
+        flash('Нельзя удалить суперадмина.', 'danger')
+        return redirect(url_for('admin.users'))
+    name = user.full_name
+    db.session.delete(user)
+    db.session.commit()
+    flash(f'Пользователь "{name}" удален.', 'warning')
+    return redirect(url_for('admin.users'))
+
+
+# ---------------------------------------------------------------------------
+# Admin profile
+# ---------------------------------------------------------------------------
+@admin.route('/profile', methods=['GET', 'POST'])
+@login_required
+@superadmin_required
+def profile():
+    form = ProfileForm(obj=current_user)
+
+    if form.validate_on_submit():
+        current_user.first_name = form.first_name.data
+        current_user.last_name = form.last_name.data
+        current_user.phone = form.phone.data
+
+        if form.avatar.data and form.avatar.data.filename:
+            avatar_filename = secure_filename(form.avatar.data.filename)
+            name, ext = os.path.splitext(avatar_filename)
+            avatar_filename = f"{name}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
+            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
+            os.makedirs(upload_dir, exist_ok=True)
+            form.avatar.data.save(os.path.join(upload_dir, avatar_filename))
+            current_user.avatar = avatar_filename
+
+        db.session.commit()
+        flash('Профиль обновлен.', 'success')
+        return redirect(url_for('admin.profile'))
+
+    return render_template('admin/profile.html', form=form)
+
+
+# ---------------------------------------------------------------------------
+# Admin notifications
+# ---------------------------------------------------------------------------
+@admin.route('/notifications')
+@login_required
+@superadmin_required
+def notifications():
+    page = request.args.get('page', 1, type=int)
+    notifs = (
+        Notification.query
+        .filter_by(user_id=current_user.id)
+        .order_by(Notification.created_at.desc())
+        .paginate(page=page, per_page=20, error_out=False)
+    )
+
+    # Mark all as read
+    Notification.query.filter_by(user_id=current_user.id, is_read=False).update({'is_read': True})
+    db.session.commit()
+
+    return render_template('admin/notifications.html', notifications=notifs)
