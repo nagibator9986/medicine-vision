@@ -20,7 +20,8 @@ doctor = Blueprint('doctor', __name__, url_prefix='/doctor')
 
 VALID_STATUS_TRANSITIONS = {
     'scheduled': ['in_progress', 'cancelled'],
-    'in_progress': ['completed', 'cancelled'],
+    'in_progress': ['awaiting_report', 'completed', 'cancelled'],
+    'awaiting_report': ['completed', 'cancelled'],
     'completed': [],
     'cancelled': [],
 }
@@ -144,7 +145,7 @@ def update_appointment_status(appointment_id):
         abort(403)
 
     new_status = request.form.get('status')
-    if new_status not in ('in_progress', 'completed', 'cancelled'):
+    if new_status not in ('in_progress', 'awaiting_report', 'completed', 'cancelled'):
         flash('Недопустимый статус.', 'danger')
         return redirect(url_for('doctor.appointments'))
 
@@ -181,12 +182,11 @@ def patient_detail(patient_id):
         patient_id=patient_id
     ).order_by(MedicalRecord.created_at.desc()).all()
 
-    # Query prescriptions through Appointment (Prescription linked via appointment_id)
-    prescriptions = (
-        Prescription.query
-        .join(Appointment)
-        .filter(Appointment.patient_id == patient_id)
-        .order_by(Prescription.created_at.desc())
+    # All appointments with this patient (for prescription history + active work)
+    appointment_history = (
+        Appointment.query
+        .filter_by(doctor_id=current_user.id, patient_id=patient_id)
+        .order_by(Appointment.scheduled_time.desc())
         .all()
     )
 
@@ -194,7 +194,7 @@ def patient_detail(patient_id):
         'doctor/patient_detail.html',
         patient=patient,
         medical_records=medical_records,
-        prescriptions=prescriptions,
+        appointment_history=appointment_history,
     )
 
 

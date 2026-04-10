@@ -19,6 +19,7 @@
                         <option value="">Все статусы</option>
                         <option value="scheduled" {% if request.args.get('status') == 'scheduled' %}selected{% endif %}>Запланирована</option>
                         <option value="in_progress" {% if request.args.get('status') == 'in_progress' %}selected{% endif %}>В процессе</option>
+                        <option value="awaiting_report" {% if request.args.get('status') == 'awaiting_report' %}selected{% endif %}>Ожидает отчёт</option>
                         <option value="completed" {% if request.args.get('status') == 'completed' %}selected{% endif %}>Завершена</option>
                         <option value="cancelled" {% if request.args.get('status') == 'cancelled' %}selected{% endif %}>Отменена</option>
                     </select>
@@ -73,6 +74,8 @@
                                     <span class="badge bg-primary">Запланирована</span>
                                 {% elif appointment.status == 'in_progress' %}
                                     <span class="badge bg-warning text-dark">В процессе</span>
+                                {% elif appointment.status == 'awaiting_report' %}
+                                    <span class="badge text-white" style="background-color: #f97316;">Ожидает отчёт</span>
                                 {% elif appointment.status == 'completed' %}
                                     <span class="badge bg-success">Завершена</span>
                                 {% elif appointment.status == 'cancelled' %}
@@ -87,11 +90,23 @@
                                         <a href="{{ url_for('doctor.start_video_call', appointment_id=appointment.id) }}" class="btn btn-success" title="Начать прием">
                                             <i class="fas fa-video"></i>
                                         </a>
+                                    {% elif appointment.status == 'in_progress' %}
+                                        <a href="{{ url_for('doctor.start_video_call', appointment_id=appointment.id) }}" class="btn btn-warning" title="Продолжить">
+                                            <i class="fas fa-video"></i>
+                                        </a>
                                     {% endif %}
-                                    {% if appointment.status in ['in_progress', 'completed'] %}
+                                    {% if appointment.status in ['in_progress', 'awaiting_report', 'completed'] %}
                                         <a href="{{ url_for('doctor.create_prescription', appointment_id=appointment.id) }}" class="btn btn-outline-primary" title="Назначение">
                                             <i class="fas fa-prescription"></i>
                                         </a>
+                                    {% endif %}
+                                    {% if appointment.status == 'awaiting_report' %}
+                                        <form method="POST" action="{{ url_for('doctor.update_appointment_status', appointment_id=appointment.id) }}" class="d-inline">
+                                            <input type="hidden" name="status" value="completed">
+                                            <button type="submit" class="btn btn-success" title="Завершить приём">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        </form>
                                     {% endif %}
                                     <a href="{{ url_for('doctor.patient_detail', patient_id=appointment.patient.id) }}" class="btn btn-outline-info" title="Карта пациента">
                                         <i class="fas fa-user"></i>

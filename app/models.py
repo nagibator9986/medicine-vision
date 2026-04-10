@@ -104,7 +104,7 @@ class Appointment(db.Model):
     __tablename__ = 'appointments'
     __table_args__ = (
         CheckConstraint(
-            "status IN ('scheduled', 'in_progress', 'completed', 'cancelled')",
+            "status IN ('scheduled', 'in_progress', 'awaiting_report', 'completed', 'cancelled')",
             name='ck_appointment_status',
         ),
         db.Index('ix_appointment_doctor_time', 'doctor_id', 'scheduled_time'),
@@ -116,7 +116,7 @@ class Appointment(db.Model):
     clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.id'), nullable=False, index=True)
     scheduled_time = db.Column(db.DateTime, nullable=False)
     duration_minutes = db.Column(db.Integer, default=30)
-    status = db.Column(db.String(20), default='scheduled')  # scheduled, in_progress, completed, cancelled
+    status = db.Column(db.String(20), default='scheduled')  # scheduled, in_progress, awaiting_report, completed, cancelled
     symptoms = db.Column(db.Text)
     notes = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=_utcnow)

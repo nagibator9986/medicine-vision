@@ -76,12 +76,16 @@ def end(room_id):
         videocall.duration_seconds = int((videocall.ended_at - videocall.started_at).total_seconds())
     videocall.status = 'ended'
 
-    appointment.status = 'completed'
+    # Don't auto-complete — doctor needs to fill report first
+    appointment.status = 'awaiting_report'
 
     db.session.commit()
 
     flash('Видеозвонок завершён.', 'success')
-    return redirect(url_for('patient.index') if current_user.role == 'patient' else url_for('doctor.dashboard'))
+    if current_user.role == 'patient':
+        return redirect(url_for('patient.index'))
+    # Redirect doctor to patient detail so they can fill prescription/records
+    return redirect(url_for('doctor.patient_detail', patient_id=appointment.patient_id))
 
 
 @videocall_bp.route('/transcribe/<room_id>', methods=['POST'])
