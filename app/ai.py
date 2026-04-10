@@ -1,37 +1,18 @@
 """
-OpenAI integration via raw HTTP — bypasses httpx/eventlet conflicts.
+OpenAI integration via raw HTTP requests.
 
-The OpenAI Python SDK uses httpx which breaks under eventlet monkey-patching.
-Instead, we call the OpenAI Chat Completions API directly via requests,
-which is eventlet-compatible.
+Uses requests library directly instead of OpenAI SDK to avoid
+httpx dependency conflicts with async workers (eventlet/gevent).
 """
-import json
 import logging
 import os
 from typing import Optional
 
-import requests
+import requests as http
 
 logger = logging.getLogger(__name__)
 
 OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
-
-# Force DNS resolution via Google/Cloudflare if system DNS fails
-def _patch_dns():
-    """Add fallback DNS resolvers for Railway containers with broken DNS."""
-    try:
-        import socket
-        # Test if we can resolve openai
-        socket.getaddrinfo('api.openai.com', 443, socket.AF_INET, socket.SOCK_STREAM)
-    except socket.gaierror:
-        logger.warning('System DNS cannot resolve api.openai.com, patching resolv.conf')
-        try:
-            with open('/etc/resolv.conf', 'a') as f:
-                f.write('\nnameserver 8.8.8.8\nnameserver 1.1.1.1\n')
-        except PermissionError:
-            logger.error('Cannot write to /etc/resolv.conf')
-
-_patch_dns()
 
 
 def _get_api_key() -> str:
@@ -58,7 +39,7 @@ def chat_completion(messages: list, max_tokens: int = 1000,
         return None, 'AI-ассистент не настроен. Обратитесь к администратору.'
 
     try:
-        resp = requests.post(
+        resp = http.post(
             OPENAI_API_URL,
             headers={
                 'Authorization': f'Bearer {api_key}',
@@ -85,10 +66,10 @@ def chat_completion(messages: list, max_tokens: int = 1000,
 
         return None, 'AI-сервис вернул пустой ответ.'
 
-    except requests.exceptions.Timeout:
+    except http.exceptions.Timeout:
         logger.error('OpenAI API timeout')
         return None, 'AI-сервис не ответил вовремя. Попробуйте позже.'
-    except requests.exceptions.ConnectionError as e:
+    except http.exceptions.ConnectionError as e:
         logger.error('OpenAI connection error: %s', e)
         return None, 'Не удалось подключиться к AI-сервису.'
     except Exception as e:
