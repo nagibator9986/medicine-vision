@@ -89,6 +89,7 @@ def send():
                 assistant_text = response.choices[0].message.content
     except Exception as e:
         logger.error('OpenAI chatbot error: %s', e)
+        assistant_text = f'Ошибка AI-сервиса: {type(e).__name__}: {e}'
 
     # Save assistant response
     assistant_message = ChatMessage(
