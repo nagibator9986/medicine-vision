@@ -1,4 +1,5 @@
 import logging
+import os
 
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
@@ -75,7 +76,7 @@ def send():
     assistant_text = None
     try:
         import openai
-        api_key = current_app.config.get('OPENAI_API_KEY', '')
+        api_key = os.environ.get('OPENAI_API_KEY', '') or current_app.config.get('OPENAI_API_KEY', '')
         if not api_key or api_key == 'your-openai-api-key-here':
             logger.warning('OPENAI_API_KEY not configured — chatbot disabled')
             assistant_text = 'AI-ассистент не настроен. Обратитесь к администратору для настройки OPENAI_API_KEY.'
