@@ -36,7 +36,7 @@ def index():
     upcoming_appointments = (
         Appointment.query
         .filter_by(patient_id=current_user.id)
-        .filter(Appointment.status.in_(['scheduled', 'in_progress']))
+        .filter(Appointment.status.in_(['scheduled', 'in_progress', 'awaiting_report']))
         .filter(Appointment.scheduled_time >= now)
         .order_by(Appointment.scheduled_time.asc())
         .limit(5)

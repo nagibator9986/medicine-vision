@@ -1,7 +1,6 @@
 import logging
-import os
 
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
 from flask_login import login_required, current_user
 from app import db, csrf
 from app.models import ChatMessage
@@ -76,7 +75,7 @@ def send():
     assistant_text = 'Извините, сервис временно недоступен. Попробуйте позже.'
     try:
         import openai
-        api_key = os.environ.get('OPENAI_API_KEY', '')
+        api_key = current_app.config.get('OPENAI_API_KEY', '')
         if api_key and api_key != 'your-openai-api-key-here':
             client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
@@ -89,7 +88,7 @@ def send():
                 assistant_text = response.choices[0].message.content
     except Exception as e:
         logger.error('OpenAI chatbot error: %s', e)
-        assistant_text = f'Ошибка AI-сервиса: {type(e).__name__}: {e}'
+        assistant_text = 'Извините, произошла ошибка при обращении к AI-сервису. Попробуйте позже.'
 
     # Save assistant response
     assistant_message = ChatMessage(

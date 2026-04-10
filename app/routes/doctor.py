@@ -92,6 +92,9 @@ def dashboard():
         today_appointments=today_appointments,
         upcoming_appointments=upcoming_appointments,
         stats=stats,
+        total_appointments=total_appointments,
+        completed_appointments=completed_appointments,
+        unique_patients=total_patients,
     )
 
 
@@ -225,7 +228,7 @@ def start_video_call(appointment_id):
     )
     db.session.add(video_call)
 
-    if appointment.status not in ('in_progress', 'completed'):
+    if appointment.status not in ('in_progress', 'awaiting_report', 'completed'):
         appointment.status = 'in_progress'
 
     db.session.commit()

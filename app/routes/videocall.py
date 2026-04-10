@@ -3,7 +3,7 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from flask_socketio import emit, join_room, leave_room
 from app import db, socketio, csrf
@@ -109,7 +109,7 @@ def transcribe(room_id):
     summary = None
     try:
         import openai
-        client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY'))
+        client = openai.OpenAI(api_key=current_app.config.get('OPENAI_API_KEY', ''))
         response = client.chat.completions.create(
             model='gpt-4o-mini',
             messages=[

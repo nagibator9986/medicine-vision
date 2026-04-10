@@ -145,7 +145,7 @@ def add_doctor():
 def edit_doctor(doctor_id):
     doctor = User.query.filter_by(
         id=doctor_id, role='doctor', clinic_id=current_user.clinic_id
-    ).first_or_404()
+    ).first() or abort(404)
 
     form = DoctorForm(obj=doctor)
     if form.validate_on_submit():
@@ -186,7 +186,7 @@ def edit_doctor(doctor_id):
 def delete_doctor(doctor_id):
     doctor = User.query.filter_by(
         id=doctor_id, role='doctor', clinic_id=current_user.clinic_id
-    ).first_or_404()
+    ).first() or abort(404)
 
     doctor.is_active = False
     db.session.commit()
