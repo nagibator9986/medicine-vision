@@ -105,35 +105,27 @@ def transcribe(room_id):
     transcription_text = data['transcription'][:50000]  # limit length
     videocall.transcription = transcription_text
 
-    # Generate AI summary
-    summary = None
-    try:
-        import openai
-        client = openai.OpenAI(api_key=current_app.config.get('OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', ''))
-        response = client.chat.completions.create(
-            model='gpt-4o-mini',
-            messages=[
-                {
-                    'role': 'system',
-                    'content': (
-                        'Вы — медицинский ассистент. Создайте краткое резюме телемедицинской консультации '
-                        'на основе транскрипции разговора врача и пациента. Укажите основные жалобы, '
-                        'рекомендации врача и ключевые моменты. Отвечайте на русском языке.'
-                    )
-                },
-                {
-                    'role': 'user',
-                    'content': f'<transcription>\n{transcription_text}\n</transcription>\n\nСоздайте краткое резюме вышеуказанной транскрипции.'
-                }
-            ],
-            max_tokens=1000,
-            temperature=0.3
-        )
-        if response.choices and response.choices[0].message:
-            summary = response.choices[0].message.content
+    # Generate AI summary via tpool-isolated call
+    from app.ai import chat_completion
+    summary_messages = [
+        {
+            'role': 'system',
+            'content': (
+                'Вы — медицинский ассистент. Создайте краткое резюме телемедицинской консультации '
+                'на основе транскрипции разговора врача и пациента. Укажите основные жалобы, '
+                'рекомендации врача и ключевые моменты. Отвечайте на русском языке.'
+            ),
+        },
+        {
+            'role': 'user',
+            'content': f'<transcription>\n{transcription_text}\n</transcription>\n\nСоздайте краткое резюме.',
+        },
+    ]
+    summary, error = chat_completion(summary_messages, max_tokens=1000, temperature=0.3)
+    if summary:
         videocall.summary = summary
-    except Exception as e:
-        logger.error('OpenAI transcription summary error: %s', e)
+    elif error:
+        logger.warning('Transcription summary failed: %s', error)
 
     db.session.commit()
 

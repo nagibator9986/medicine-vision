@@ -1,10 +1,10 @@
 import logging
-import os
 
-from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, current_app
+from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for
 from flask_login import login_required, current_user
 from app import db, csrf
 from app.models import ChatMessage
+from app.ai import chat_completion
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +18,7 @@ SYSTEM_PROMPT = (
     "НЕ ставьте диагнозы, а рекомендуйте обратиться к специалисту."
 )
 
-MAX_HISTORY_MESSAGES = 50  # Limit messages sent to OpenAI to control token usage
+MAX_HISTORY_MESSAGES = 50
 
 
 @chatbot_bp.route('/')
@@ -53,12 +53,12 @@ def send():
     user_message = ChatMessage(
         user_id=current_user.id,
         role='user',
-        content=user_message_text
+        content=user_message_text,
     )
     db.session.add(user_message)
     db.session.commit()
 
-    # Build conversation history for OpenAI — limited to last N messages
+    # Build conversation history for OpenAI
     history = (
         ChatMessage.query
         .filter_by(user_id=current_user.id)
@@ -66,58 +66,28 @@ def send():
         .limit(MAX_HISTORY_MESSAGES)
         .all()
     )
-    history.reverse()  # chronological order
+    history.reverse()
 
     messages = [{'role': 'system', 'content': SYSTEM_PROMPT}]
     for msg in history:
         messages.append({'role': msg.role, 'content': msg.content})
 
-    # Get AI response
-    assistant_text = None
-    try:
-        import openai
-        api_key = current_app.config.get('OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', '')
-        logger.warning('CHATBOT: api_key present=%s len=%d env=%s config=%s',
-                       bool(api_key), len(api_key),
-                       bool(os.environ.get('OPENAI_API_KEY')),
-                       bool(current_app.config.get('OPENAI_API_KEY')))
-        if not api_key or api_key == 'your-openai-api-key-here':
-            logger.warning('OPENAI_API_KEY not configured — chatbot disabled')
-            assistant_text = 'AI-ассистент не настроен. Обратитесь к администратору для настройки OPENAI_API_KEY.'
-        else:
-            logger.info('Calling OpenAI with key: %s...%s', api_key[:8], api_key[-4:])
-            client = openai.OpenAI(api_key=api_key, timeout=30.0, max_retries=2)
-            response = client.chat.completions.create(
-                model='gpt-4o-mini',
-                messages=messages,
-                max_tokens=1000,
-                temperature=0.7
-            )
-            if response.choices and response.choices[0].message:
-                assistant_text = response.choices[0].message.content
-            else:
-                assistant_text = 'AI-сервис вернул пустой ответ. Попробуйте переформулировать вопрос.'
-    except Exception as e:
-        logger.error('OpenAI chatbot error: %s', e)
-        err_msg = str(e)[:200]
-        logger.error('OpenAI error detail: %s', err_msg)
-        assistant_text = f'Ошибка AI: {type(e).__name__}. {err_msg}'
-
-    if not assistant_text:
-        assistant_text = 'Извините, сервис временно недоступен. Попробуйте позже.'
+    # Get AI response via tpool-isolated call
+    response_text, error = chat_completion(messages)
+    assistant_text = response_text or error or 'Извините, сервис временно недоступен.'
 
     # Save assistant response
     assistant_message = ChatMessage(
         user_id=current_user.id,
         role='assistant',
-        content=assistant_text
+        content=assistant_text,
     )
     db.session.add(assistant_message)
     db.session.commit()
 
     return jsonify({
         'response': assistant_text,
-        'timestamp': assistant_message.created_at.strftime('%H:%M')
+        'timestamp': assistant_message.created_at.strftime('%H:%M'),
     })
 
 
@@ -132,5 +102,3 @@ def clear():
     db.session.commit()
 
     return jsonify({'status': 'success'})
-
-
