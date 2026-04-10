@@ -2,7 +2,7 @@
 import uuid
 from datetime import datetime, timezone
 from app import db
-from app.models import Appointment, VideoCall, Prescription, MedicalRecord
+from app.models import Appointment, VideoCall, Prescription, MedicalRecord, Review
 from tests.conftest import login
 
 
@@ -130,6 +130,48 @@ class TestVideoCall:
         resp = client.get(f'/doctor/appointments/{appointment}/video', follow_redirects=False)
         assert resp.status_code == 302
         assert room_id in resp.headers['Location']
+
+
+class TestPatientDetail:
+    def test_patient_detail_loads(self, client, doctor_user, patient_user, appointment):
+        login(client, 'doctor@test.kz')
+        resp = client.get(f'/doctor/patients/{patient_user}')
+        assert resp.status_code == 200
+
+    def test_patient_detail_no_appointment_returns_403(self, client, app, doctor_user):
+        with app.app_context():
+            from app.models import User
+            other = User(
+                email='lonely@test.kz', first_name='L', last_name='P',
+                role='patient', is_active=True,
+            )
+            other.set_password('password123')
+            db.session.add(other)
+            db.session.commit()
+            other_id = other.id
+        login(client, 'doctor@test.kz')
+        resp = client.get(f'/doctor/patients/{other_id}')
+        assert resp.status_code == 403
+
+
+class TestDoctorReviews:
+    def test_reviews_page_loads(self, client, doctor_user):
+        login(client, 'doctor@test.kz')
+        resp = client.get('/doctor/reviews')
+        assert resp.status_code == 200
+
+    def test_reviews_shows_data(self, client, app, doctor_user, patient_user, appointment):
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            apt.status = 'completed'
+            db.session.add(Review(
+                patient_id=patient_user, doctor_id=doctor_user,
+                appointment_id=appointment, rating=4, comment='Good',
+            ))
+            db.session.commit()
+        login(client, 'doctor@test.kz')
+        resp = client.get('/doctor/reviews')
+        assert resp.status_code == 200
 
 
 class TestDoctorProfile:

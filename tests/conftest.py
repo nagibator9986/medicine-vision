@@ -1,5 +1,11 @@
 import os
+import warnings
 import pytest
+
+# Suppress known third-party deprecation warnings we cannot fix
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='flask_login')
+warnings.filterwarnings('ignore', category=DeprecationWarning, module='flask_sqlalchemy')
+warnings.filterwarnings('ignore', message='.*datetime.datetime.utcnow.*', category=DeprecationWarning)
 
 # Force test configuration before any app import
 os.environ['SECRET_KEY'] = 'test-secret-key-for-testing'
@@ -145,7 +151,7 @@ def appointment(app, clinic, doctor_user, patient_user):
             patient_id=patient_user,
             doctor_id=doctor_user,
             clinic_id=clinic,
-            scheduled_time=datetime.now(timezone.utc) + timedelta(days=1),
+            scheduled_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1),
             status='scheduled',
         )
         _db.session.add(a)

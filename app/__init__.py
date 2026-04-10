@@ -66,6 +66,6 @@ def create_app(config_class=Config):
     @app.context_processor
     def inject_now():
         from datetime import datetime, timezone
-        return {'now': datetime.now(timezone.utc)}
+        return {'now': datetime.now(timezone.utc).replace(tzinfo=None)}
 
     return app

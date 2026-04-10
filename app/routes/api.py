@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
 
@@ -6,6 +6,40 @@ from app import db, csrf
 from app.models import User, Clinic, Appointment, Notification
 
 api_bp = Blueprint('api', __name__)
+
+
+@api_bp.route('/notifications', methods=['GET'])
+@login_required
+def get_notifications():
+    """Return user's recent unread notifications as JSON."""
+    notifications = Notification.query.filter_by(
+        user_id=current_user.id,
+        is_read=False
+    ).order_by(Notification.created_at.desc()).limit(20).all()
+
+    return jsonify({
+        'notifications': [{
+            'id': n.id,
+            'title': n.title,
+            'message': n.message,
+            'type': n.type,
+            'read': n.is_read,
+            'link': n.link,
+            'created_at': n.created_at.isoformat() if n.created_at else None,
+        } for n in notifications]
+    }), 200
+
+
+@api_bp.route('/notifications/read-all', methods=['POST'])
+@login_required
+@csrf.exempt
+def mark_all_notifications_read():
+    """Mark all of the current user's notifications as read."""
+    Notification.query.filter_by(
+        user_id=current_user.id, is_read=False
+    ).update({'is_read': True})
+    db.session.commit()
+    return jsonify({'success': True}), 200
 
 
 @api_bp.route('/notifications/count', methods=['GET'])
@@ -22,7 +56,7 @@ def notifications_count():
 @login_required
 @csrf.exempt
 def mark_notification_read(id):
-    notification = Notification.query.get_or_404(id)
+    notification = db.session.get(Notification, id) or abort(404)
 
     if notification.user_id != current_user.id:
         return jsonify({'error': 'Доступ запрещён'}), 403
@@ -35,7 +69,7 @@ def mark_notification_read(id):
 @api_bp.route('/doctors/<int:clinic_id>', methods=['GET'])
 @login_required
 def get_doctors(clinic_id):
-    clinic = Clinic.query.get_or_404(clinic_id)
+    clinic = db.session.get(Clinic, clinic_id) or abort(404)
     doctors = User.query.filter_by(
         clinic_id=clinic.id,
         role='doctor',

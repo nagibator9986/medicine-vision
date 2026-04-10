@@ -1,7 +1,13 @@
+import os
+
 from app import create_app, socketio, db
 from app.models import User, Clinic
 
 app = create_app()
+
+# Auto-create tables on startup (for Railway / production first deploy)
+with app.app_context():
+    db.create_all()
 
 
 @app.cli.command('init-db')
@@ -85,14 +91,19 @@ def init_db():
     db.session.commit()
     print('Database initialized successfully!')
     print('')
-    print('Demo accounts:')
-    print('  Superadmin:    admin@mediplatform.kz / admin123')
-    print('  Clinic Admin:  clinic@mediplatform.kz / clinic123')
-    print('  Doctor:        doctor@mediplatform.kz / doctor123')
-    print('  Patient:       patient@mediplatform.kz / patient123')
+    print('Demo accounts (see .env-example for passwords):')
+    print('  Superadmin:    admin@mediplatform.kz')
+    print('  Clinic Admin:  clinic@mediplatform.kz')
+    print('  Doctor:        doctor@mediplatform.kz')
+    print('  Patient:       patient@mediplatform.kz')
 
 
 if __name__ == '__main__':
-    with app.app_context():
-        db.create_all()
-    socketio.run(app, debug=True, host='0.0.0.0', port=5050, allow_unsafe_werkzeug=True)
+    debug = os.environ.get('FLASK_DEBUG', 'true').lower() == 'true'
+    socketio.run(
+        app,
+        debug=debug,
+        host='0.0.0.0',
+        port=int(os.environ.get('PORT', 5051)),
+        allow_unsafe_werkzeug=debug,
+    )

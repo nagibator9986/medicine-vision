@@ -8,15 +8,17 @@ from app.models import (
 
 
 class TestUtcnow:
-    def test_returns_aware_datetime(self, app):
+    def test_returns_naive_datetime(self, app):
         with app.app_context():
             now = _utcnow()
-            assert now.tzinfo is not None
+            # _utcnow returns naive UTC for SQLite compatibility
+            assert now.tzinfo is None
 
-    def test_is_utc(self, app):
+    def test_is_recent(self, app):
         with app.app_context():
             now = _utcnow()
-            assert now.tzinfo == timezone.utc
+            reference = datetime.now(timezone.utc).replace(tzinfo=None)
+            assert abs((reference - now).total_seconds()) < 2
 
 
 class TestUserModel:
@@ -130,3 +132,25 @@ class TestCascadeDeletes:
             db.session.commit()
 
             assert db.session.get(Prescription, p_id) is None
+
+    def test_delete_appointment_cascades_review(self, app, appointment, doctor_user, patient_user):
+        """Deleting an appointment should cascade-delete its Review."""
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            apt.status = 'completed'
+            r = Review(
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                appointment_id=appointment,
+                rating=5,
+                comment='Great',
+            )
+            db.session.add(r)
+            db.session.commit()
+            r_id = r.id
+
+            apt = db.session.get(Appointment, appointment)
+            db.session.delete(apt)
+            db.session.commit()
+
+            assert db.session.get(Review, r_id) is None

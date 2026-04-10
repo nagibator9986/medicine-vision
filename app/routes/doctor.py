@@ -18,6 +18,14 @@ from app.forms import PrescriptionForm, MedicalRecordForm, ProfileForm
 doctor = Blueprint('doctor', __name__, url_prefix='/doctor')
 
 
+VALID_STATUS_TRANSITIONS = {
+    'scheduled': ['in_progress', 'cancelled'],
+    'in_progress': ['completed', 'cancelled'],
+    'completed': [],
+    'cancelled': [],
+}
+
+
 def doctor_required(f):
     """Decorator that ensures the current user has the 'doctor' role."""
     @wraps(f)
@@ -130,7 +138,7 @@ def appointments():
 @login_required
 @doctor_required
 def update_appointment_status(appointment_id):
-    appointment = Appointment.query.get_or_404(appointment_id)
+    appointment = db.session.get(Appointment, appointment_id) or abort(404)
 
     if appointment.doctor_id != current_user.id:
         abort(403)
@@ -138,6 +146,11 @@ def update_appointment_status(appointment_id):
     new_status = request.form.get('status')
     if new_status not in ('in_progress', 'completed', 'cancelled'):
         flash('Недопустимый статус.', 'danger')
+        return redirect(url_for('doctor.appointments'))
+
+    allowed = VALID_STATUS_TRANSITIONS.get(appointment.status, [])
+    if new_status not in allowed:
+        flash(f'Невозможно перевести приём из "{appointment.status}" в "{new_status}".', 'danger')
         return redirect(url_for('doctor.appointments'))
 
     appointment.status = new_status
@@ -155,7 +168,7 @@ def update_appointment_status(appointment_id):
 @login_required
 @doctor_required
 def patient_detail(patient_id):
-    patient = User.query.get_or_404(patient_id)
+    patient = db.session.get(User, patient_id) or abort(404)
 
     # Ensure the doctor actually has appointments with this patient
     has_appointment = Appointment.query.filter_by(
@@ -193,7 +206,7 @@ def patient_detail(patient_id):
 @login_required
 @doctor_required
 def start_video_call(appointment_id):
-    appointment = Appointment.query.get_or_404(appointment_id)
+    appointment = db.session.get(Appointment, appointment_id) or abort(404)
 
     if appointment.doctor_id != current_user.id:
         abort(403)
@@ -207,7 +220,7 @@ def start_video_call(appointment_id):
     video_call = VideoCall(
         appointment_id=appointment_id,
         room_id=room_id,
-        started_at=datetime.now(timezone.utc),
+        started_at=datetime.now(timezone.utc).replace(tzinfo=None),
         status='active',
     )
     db.session.add(video_call)
@@ -228,7 +241,7 @@ def start_video_call(appointment_id):
 @login_required
 @doctor_required
 def create_prescription(appointment_id):
-    appointment = Appointment.query.get_or_404(appointment_id)
+    appointment = db.session.get(Appointment, appointment_id) or abort(404)
 
     if appointment.doctor_id != current_user.id:
         abort(403)
@@ -265,7 +278,7 @@ def create_prescription(appointment_id):
 @login_required
 @doctor_required
 def create_medical_record(patient_id):
-    patient = User.query.get_or_404(patient_id)
+    patient = db.session.get(User, patient_id) or abort(404)
 
     # Verify the doctor has an appointment with this patient
     has_appointment = Appointment.query.filter_by(

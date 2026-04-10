@@ -1,3 +1,4 @@
+import re
 from datetime import date
 
 from flask_wtf import FlaskForm
@@ -48,7 +49,7 @@ class PatientRegistrationForm(FlaskForm):
 
 class DoctorForm(FlaskForm):
     email = StringField('Email', validators=[DataRequired(), Email()])
-    password = PasswordField('Пароль', validators=[Optional(), Length(min=6)])
+    password = PasswordField('Пароль', validators=[Optional(), Length(min=8, message='Пароль должен содержать минимум 8 символов.')])
     first_name = StringField('Имя', validators=[DataRequired(), Length(max=64)])
     last_name = StringField('Фамилия', validators=[DataRequired(), Length(max=64)])
     phone = StringField('Телефон', validators=[Optional(), Length(max=20)])
@@ -57,6 +58,10 @@ class DoctorForm(FlaskForm):
     bio = TextAreaField('О враче', validators=[Optional()])
     consultation_price = FloatField('Стоимость консультации', validators=[Optional(), NumberRange(min=0)])
     avatar = FileField('Фото', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'], 'Только изображения')])
+
+    def validate_password(self, field):
+        if field.data and not any(ch.isdigit() for ch in field.data):
+            raise ValidationError('Пароль должен содержать хотя бы одну цифру.')
 
 
 class ClinicForm(FlaskForm):
@@ -70,6 +75,20 @@ class ClinicForm(FlaskForm):
     secondary_color = StringField('Дополнительный цвет', validators=[Optional()])
     working_hours_start = StringField('Начало работы', validators=[Optional()])
     working_hours_end = StringField('Конец работы', validators=[Optional()])
+
+    def _validate_time_format(self, field):
+        if field.data:
+            if not re.match(r'^\d{2}:\d{2}$', field.data):
+                raise ValidationError('Формат времени: HH:MM')
+            h, m = map(int, field.data.split(':'))
+            if h > 23 or m > 59:
+                raise ValidationError('Некорректное время.')
+
+    def validate_working_hours_start(self, field):
+        self._validate_time_format(field)
+
+    def validate_working_hours_end(self, field):
+        self._validate_time_format(field)
     logo = FileField('Логотип', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg', 'svg'], 'Только изображения')])
 
     # Admin user for clinic
@@ -117,3 +136,11 @@ class ProfileForm(FlaskForm):
 class ReviewForm(FlaskForm):
     rating = HiddenField('Оценка', validators=[DataRequired()])
     comment = TextAreaField('Комментарий', validators=[Optional()])
+
+    def validate_rating(self, field):
+        try:
+            val = int(field.data)
+            if val < 1 or val > 5:
+                raise ValidationError('Оценка должна быть от 1 до 5.')
+        except (TypeError, ValueError):
+            raise ValidationError('Некорректная оценка.')

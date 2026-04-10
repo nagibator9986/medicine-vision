@@ -33,6 +33,37 @@ class TestNotificationsApi:
         assert resp.get_json()['success'] is True
 
 
+class TestNotificationsListApi:
+    def test_get_notifications_returns_json(self, client, app, patient_user):
+        with app.app_context():
+            db.session.add(Notification(
+                user_id=patient_user, title='Hello', message='World', type='info',
+            ))
+            db.session.commit()
+        login(client, 'patient@test.kz')
+        resp = client.get('/api/notifications')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert 'notifications' in data
+        assert len(data['notifications']) == 1
+        assert data['notifications'][0]['title'] == 'Hello'
+
+    def test_mark_all_read_api(self, client, app, patient_user):
+        with app.app_context():
+            for i in range(2):
+                db.session.add(Notification(
+                    user_id=patient_user, title=f'N{i}', message='m', type='info',
+                ))
+            db.session.commit()
+        login(client, 'patient@test.kz')
+        resp = client.post('/api/notifications/read-all')
+        assert resp.status_code == 200
+        assert resp.get_json()['success'] is True
+        # Verify all are read
+        resp2 = client.get('/api/notifications/count')
+        assert resp2.get_json()['count'] == 0
+
+
 class TestDoctorsApi:
     def test_get_doctors_by_clinic(self, client, patient_user, doctor_user, clinic):
         login(client, 'patient@test.kz')

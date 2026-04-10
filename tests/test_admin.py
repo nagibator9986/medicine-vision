@@ -1,6 +1,6 @@
 """Tests for admin routes — dashboard, clinics, users, analytics."""
 from app import db
-from app.models import User, Clinic
+from app.models import User, Clinic, Notification
 from tests.conftest import login
 
 
@@ -79,6 +79,87 @@ class TestUsersManagement:
     def test_users_filter_by_role(self, client, superadmin, doctor_user):
         login(client, 'admin@test.kz')
         resp = client.get('/admin/users?role=doctor')
+        assert resp.status_code == 200
+
+
+class TestEditClinic:
+    def test_edit_clinic_form_loads(self, client, superadmin, clinic):
+        login(client, 'admin@test.kz')
+        resp = client.get(f'/admin/clinics/{clinic}/edit')
+        assert resp.status_code == 200
+
+    def test_edit_clinic_success(self, client, app, superadmin, clinic):
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/clinics/{clinic}/edit', data={
+            'name': 'Updated Clinic Name',
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            c = db.session.get(Clinic, clinic)
+            assert c.name == 'Updated Clinic Name'
+
+
+class TestToggleUser:
+    def test_toggle_user_active(self, client, app, superadmin, doctor_user):
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/users/{doctor_user}/toggle', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            u = db.session.get(User, doctor_user)
+            assert u.is_active is False
+
+    def test_cannot_toggle_superadmin(self, client, app, superadmin):
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/users/{superadmin}/toggle', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            u = db.session.get(User, superadmin)
+            assert u.is_active is True  # unchanged
+
+
+class TestDeleteUser:
+    def test_delete_user(self, client, app, superadmin, patient_user):
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/users/{patient_user}/delete', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            assert db.session.get(User, patient_user) is None
+
+    def test_cannot_delete_superadmin(self, client, app, superadmin):
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/users/{superadmin}/delete', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            assert db.session.get(User, superadmin) is not None
+
+
+class TestAdminProfile:
+    def test_profile_loads(self, client, superadmin):
+        login(client, 'admin@test.kz')
+        resp = client.get('/admin/profile')
+        assert resp.status_code == 200
+
+    def test_profile_update(self, client, app, superadmin):
+        login(client, 'admin@test.kz')
+        resp = client.post('/admin/profile', data={
+            'first_name': 'Updated',
+            'last_name': 'Admin',
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            u = db.session.get(User, superadmin)
+            assert u.first_name == 'Updated'
+
+
+class TestAdminNotifications:
+    def test_notifications_page(self, client, app, superadmin):
+        with app.app_context():
+            db.session.add(Notification(
+                user_id=superadmin, title='Test', message='msg', type='info',
+            ))
+            db.session.commit()
+        login(client, 'admin@test.kz')
+        resp = client.get('/admin/notifications')
         assert resp.status_code == 200
 
 

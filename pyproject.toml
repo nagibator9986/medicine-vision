@@ -1,0 +1,7 @@
+[tool.pytest.ini_options]
+filterwarnings = [
+    "ignore::DeprecationWarning:flask_login",
+    "ignore::DeprecationWarning:flask_sqlalchemy",
+    "ignore:.*datetime.datetime.utcnow.*:DeprecationWarning",
+    "ignore:.*The Query.get.*:DeprecationWarning",
+]

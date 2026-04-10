@@ -644,7 +644,7 @@
                 <a href="#features" class="nav-link">Возможности</a>
                 <a href="#how-it-works" class="nav-link">Как это работает</a>
                 <a href="#clinics" class="nav-link">Для клиник</a>
-                <a href="/login" class="btn btn-nav-login">Войти</a>
+                <a href="{{ url_for('auth.login') }}" class="btn btn-nav-login">Войти</a>
             </div>
             <button class="btn d-md-none" style="color: #fff; font-size: 1.25rem;" onclick="document.getElementById('mobileMenu').classList.toggle('d-none')">
                 <i class="fas fa-bars"></i>
@@ -654,7 +654,7 @@
             <a href="#features" class="nav-link d-block py-2">Возможности</a>
             <a href="#how-it-works" class="nav-link d-block py-2">Как это работает</a>
             <a href="#clinics" class="nav-link d-block py-2">Для клиник</a>
-            <a href="/login" class="btn btn-nav-login mt-2">Войти</a>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-nav-login mt-2">Войти</a>
         </div>
     </div>
 </nav>
@@ -674,10 +674,10 @@
                     электронные рецепты и AI-помощник — все в одной платформе.
                 </p>
                 <div class="d-flex flex-wrap gap-3">
-                    <a href="/register" class="btn-hero-primary">
+                    <a href="{{ url_for('auth.register') }}" class="btn-hero-primary">
                         Зарегистрироваться <i class="fas fa-arrow-right ms-2"></i>
                     </a>
-                    <a href="/login" class="btn-hero-secondary">
+                    <a href="{{ url_for('auth.login') }}" class="btn-hero-secondary">
                         Войти
                     </a>
                 </div>
@@ -889,7 +889,7 @@
                         Зарегистрируйте вашу клинику и получите доступ ко всем инструментам
                         телемедицинской платформы. Мы поможем с настройкой и интеграцией.
                     </p>
-                    <a href="/register" class="btn-clinic">
+                    <a href="{{ url_for('auth.register') }}" class="btn-clinic">
                         Зарегистрировать клинику <i class="fas fa-arrow-right ms-2"></i>
                     </a>
                 </div>
@@ -916,7 +916,7 @@
                     <li><a href="#features">Возможности</a></li>
                     <li><a href="#how-it-works">Как это работает</a></li>
                     <li><a href="#clinics">Для клиник</a></li>
-                    <li><a href="/register">Регистрация</a></li>
+                    <li><a href="{{ url_for('auth.register') }}">Регистрация</a></li>
                 </ul>
             </div>
             <div class="col-lg-2 col-md-6">

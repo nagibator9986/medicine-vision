@@ -83,6 +83,43 @@ class TestClinicStatistics:
         assert resp.status_code == 200
 
 
+class TestEditDoctor:
+    def test_edit_doctor_form_loads(self, client, clinic_admin_user, doctor_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.get(f'/clinic/doctors/{doctor_user}/edit')
+        assert resp.status_code == 200
+
+    def test_edit_doctor_success(self, client, app, clinic_admin_user, doctor_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.post(f'/clinic/doctors/{doctor_user}/edit', data={
+            'email': 'doctor@test.kz',
+            'first_name': 'Updated',
+            'last_name': 'Doctor',
+            'specialization': 'Кардиолог',
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            doc = db.session.get(User, doctor_user)
+            assert doc.specialization == 'Кардиолог'
+
+
+class TestDeleteDoctor:
+    def test_soft_delete_doctor(self, client, app, clinic_admin_user, doctor_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.post(f'/clinic/doctors/{doctor_user}/delete', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            doc = db.session.get(User, doctor_user)
+            assert doc.is_active is False
+
+
+class TestClinicPatients:
+    def test_patients_list(self, client, clinic_admin_user, appointment, patient_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.get('/clinic/patients')
+        assert resp.status_code == 200
+
+
 class TestClinicSettings:
     def test_settings_loads(self, client, clinic_admin_user):
         login(client, 'clinicadmin@test.kz')

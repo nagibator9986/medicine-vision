@@ -1,6 +1,7 @@
-from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify
+from flask import Blueprint, render_template, redirect, url_for, flash, request, abort, jsonify, current_app
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta, date, timezone
+from sqlalchemy.exc import IntegrityError
 from app import db
 from app.models import (User, Clinic, Appointment, VideoCall, Prescription,
                         MedicalRecord, ChatMessage, Notification, Review)
@@ -30,7 +31,7 @@ def patient_required(f):
 @login_required
 @patient_required
 def index():
-    now = datetime.now(timezone.utc)
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
 
     upcoming_appointments = (
         Appointment.query
@@ -257,6 +258,12 @@ def book_appointment():
             )
 
         doctor = db.session.get(User, doctor_id)
+        if not doctor or not doctor.is_active or doctor.role != 'doctor':
+            flash('Врач не найден.', 'danger')
+            return redirect(url_for('patient.book_appointment'))
+        if current_user.clinic_id and doctor.clinic_id != current_user.clinic_id:
+            flash('Этот врач не принадлежит вашей клинике.', 'danger')
+            return redirect(url_for('patient.book_appointment'))
         appointment = Appointment(
             patient_id=current_user.id,
             doctor_id=doctor_id,
@@ -275,7 +282,14 @@ def book_appointment():
         )
         db.session.add(notification)
 
-        db.session.commit()
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Это время уже занято. Выберите другое.', 'danger')
+            return render_template(
+                'patient/book_appointment.html', form=form, time_slots=time_slots
+            )
         flash('Вы успешно записались на приём!', 'success')
         return redirect(url_for('patient.appointments'))
 
@@ -394,12 +408,16 @@ def profile():
 
         if form.avatar.data:
             from werkzeug.utils import secure_filename
-            import os
+            import os, uuid
             filename = secure_filename(form.avatar.data.filename)
             if filename:
-                upload_dir = os.path.join('app', 'static', 'uploads', 'avatars')
+                ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+                if ext not in ('jpg', 'jpeg', 'png'):
+                    flash('Допустимы только изображения (jpg, png).', 'danger')
+                    return redirect(url_for('patient.profile'))
+                unique_name = f'{uuid.uuid4().hex}.{ext}'
+                upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
                 os.makedirs(upload_dir, exist_ok=True)
-                unique_name = f'{current_user.id}_{int(datetime.now(timezone.utc).timestamp())}_{filename}'
                 filepath = os.path.join(upload_dir, unique_name)
                 form.avatar.data.save(filepath)
                 current_user.avatar = f'uploads/avatars/{unique_name}'
@@ -452,7 +470,7 @@ def reviews():
 @login_required
 @patient_required
 def leave_review(appointment_id):
-    appointment = Appointment.query.get_or_404(appointment_id)
+    appointment = db.session.get(Appointment, appointment_id) or abort(404)
 
     if appointment.patient_id != current_user.id:
         abort(403)
@@ -534,7 +552,7 @@ def notifications():
 @login_required
 @patient_required
 def mark_notification_read(notification_id):
-    notification = Notification.query.get_or_404(notification_id)
+    notification = db.session.get(Notification, notification_id) or abort(404)
 
     if notification.user_id != current_user.id:
         abort(403)

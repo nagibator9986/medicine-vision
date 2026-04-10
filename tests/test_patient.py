@@ -1,7 +1,7 @@
 """Tests for patient routes — dashboard, booking, health tracker, reviews."""
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, date, timezone, timedelta
 from app import db
-from app.models import Appointment, MedicalRecord, Notification, Review
+from app.models import Appointment, MedicalRecord, Notification, Review, Prescription
 from tests.conftest import login
 
 
@@ -22,7 +22,7 @@ class TestDoctorsList:
         login(client, 'patient@test.kz')
         resp = client.get('/patient/doctors')
         assert resp.status_code == 200
-        assert b'Doctor' in resp.data or resp.status_code == 200
+        assert b'Doctor' in resp.data
 
 
 class TestAppointmentsPaginated:
@@ -157,3 +157,77 @@ class TestReviews:
             r = Review.query.filter_by(appointment_id=appointment).first()
             assert r is not None
             assert r.rating == 5
+            assert r.comment == 'Отличный врач!'
+
+
+class TestMedicalRecordsPage:
+    def test_medical_records_page_loads(self, client, patient_user):
+        login(client, 'patient@test.kz')
+        resp = client.get('/patient/medical-records')
+        assert resp.status_code == 200
+
+    def test_medical_records_filter_by_type(self, client, app, patient_user):
+        with app.app_context():
+            db.session.add(MedicalRecord(
+                patient_id=patient_user, record_type='examination',
+                title='Test Exam', content='Content',
+            ))
+            db.session.commit()
+        login(client, 'patient@test.kz')
+        resp = client.get('/patient/medical-records?type=examination')
+        assert resp.status_code == 200
+        assert b'Test Exam' in resp.data
+
+
+class TestPrescriptionsPage:
+    def test_prescriptions_page_loads(self, client, patient_user):
+        login(client, 'patient@test.kz')
+        resp = client.get('/patient/prescriptions')
+        assert resp.status_code == 200
+
+    def test_prescriptions_shows_data(self, client, app, patient_user, doctor_user, appointment):
+        with app.app_context():
+            db.session.add(Prescription(
+                appointment_id=appointment, patient_id=patient_user,
+                doctor_id=doctor_user, diagnosis='Грипп',
+            ))
+            db.session.commit()
+        login(client, 'patient@test.kz')
+        resp = client.get('/patient/prescriptions')
+        assert resp.status_code == 200
+
+
+class TestWeekendSlots:
+    def test_weekend_slots_unavailable(self, client, patient_user, doctor_user, clinic):
+        login(client, 'patient@test.kz')
+        d = date.today() + timedelta(days=1)
+        while d.isoweekday() <= 5:
+            d += timedelta(days=1)
+        resp = client.get(f'/patient/api/time-slots?doctor_id={doctor_user}&date={d.isoformat()}')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data == []
+
+
+class TestStatusTransitionValidation:
+    def test_cannot_transition_completed_to_scheduled(self, client, app, doctor_user, appointment):
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            apt.status = 'completed'
+            db.session.commit()
+        login(client, 'doctor@test.kz')
+        resp = client.post(f'/doctor/appointments/{appointment}/status', data={
+            'status': 'scheduled',
+        }, follow_redirects=True)
+        assert 'Недопустимый статус' in resp.data.decode()
+
+    def test_cannot_transition_cancelled_to_in_progress(self, client, app, doctor_user, appointment):
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            apt.status = 'cancelled'
+            db.session.commit()
+        login(client, 'doctor@test.kz')
+        resp = client.post(f'/doctor/appointments/{appointment}/status', data={
+            'status': 'in_progress',
+        }, follow_redirects=True)
+        assert 'Невозможно перевести' in resp.data.decode()

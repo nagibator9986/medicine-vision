@@ -36,6 +36,7 @@ def chat():
 
 @chatbot_bp.route('/send', methods=['POST'])
 @login_required
+@csrf.exempt
 def send():
     if current_user.role != 'patient':
         return jsonify({'error': 'Доступ запрещён'}), 403
@@ -84,7 +85,8 @@ def send():
                 max_tokens=1000,
                 temperature=0.7
             )
-            assistant_text = response.choices[0].message.content
+            if response.choices and response.choices[0].message:
+                assistant_text = response.choices[0].message.content
     except Exception as e:
         logger.error('OpenAI chatbot error: %s', e)
 
@@ -105,6 +107,7 @@ def send():
 
 @chatbot_bp.route('/clear', methods=['POST'])
 @login_required
+@csrf.exempt
 def clear():
     if current_user.role != 'patient':
         return jsonify({'error': 'Доступ запрещён'}), 403
@@ -115,5 +118,3 @@ def clear():
     return jsonify({'status': 'success'})
 
 
-csrf.exempt(send)
-csrf.exempt(clear)

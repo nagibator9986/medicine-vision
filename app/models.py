@@ -2,11 +2,12 @@ from app import db
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timezone
+from sqlalchemy import CheckConstraint
 
 
 def _utcnow():
-    """Timezone-aware UTC now (replaces deprecated datetime.utcnow)."""
-    return datetime.now(timezone.utc)
+    """Naive UTC now for SQLite compatibility (replaces deprecated datetime.utcnow)."""
+    return datetime.now(timezone.utc).replace(tzinfo=None)
 
 
 class User(UserMixin, db.Model):
@@ -88,9 +89,12 @@ class Clinic(db.Model):
 
 class ClinicSpecialization(db.Model):
     __tablename__ = 'clinic_specializations'
+    __table_args__ = (
+        db.UniqueConstraint('clinic_id', 'name', name='uq_clinic_specialization'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.id'), nullable=False)
+    clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.id'), nullable=False, index=True)
     name = db.Column(db.String(128), nullable=False)
 
     clinic = db.relationship('Clinic', back_populates='specializations')
@@ -98,11 +102,18 @@ class ClinicSpecialization(db.Model):
 
 class Appointment(db.Model):
     __tablename__ = 'appointments'
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('scheduled', 'in_progress', 'completed', 'cancelled')",
+            name='ck_appointment_status',
+        ),
+        db.Index('ix_appointment_doctor_time', 'doctor_id', 'scheduled_time'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.id'), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    clinic_id = db.Column(db.Integer, db.ForeignKey('clinics.id'), nullable=False, index=True)
     scheduled_time = db.Column(db.DateTime, nullable=False)
     duration_minutes = db.Column(db.Integer, default=30)
     status = db.Column(db.String(20), default='scheduled')  # scheduled, in_progress, completed, cancelled
@@ -117,6 +128,7 @@ class Appointment(db.Model):
                                 cascade='all, delete-orphan')
     prescription = db.relationship('Prescription', back_populates='appointment', uselist=False,
                                    cascade='all, delete-orphan')
+    reviews = db.relationship('Review', back_populates='appointment', cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Appointment {self.id}>'
@@ -124,9 +136,15 @@ class Appointment(db.Model):
 
 class VideoCall(db.Model):
     __tablename__ = 'video_calls'
+    __table_args__ = (
+        CheckConstraint(
+            "status IN ('waiting', 'active', 'ended')",
+            name='ck_videocall_status',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False, index=True)
     room_id = db.Column(db.String(100), unique=True, nullable=False)
     started_at = db.Column(db.DateTime)
     ended_at = db.Column(db.DateTime)
@@ -145,9 +163,9 @@ class Prescription(db.Model):
     __tablename__ = 'prescriptions'
 
     id = db.Column(db.Integer, primary_key=True)
-    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
-    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False, index=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     diagnosis = db.Column(db.Text)
     medications = db.Column(db.Text)
     recommendations = db.Column(db.Text)
@@ -157,13 +175,17 @@ class Prescription(db.Model):
     patient = db.relationship('User', foreign_keys=[patient_id], backref='prescriptions_received')
     doctor_rel = db.relationship('User', foreign_keys=[doctor_id], backref='prescriptions_written')
 
+    @property
+    def doctor(self):
+        return self.doctor_rel
+
 
 class MedicalRecord(db.Model):
     __tablename__ = 'medical_records'
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True)
+    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=True, index=True)
     record_type = db.Column(db.String(50))  # examination, lab_result, imaging, note, self_log
     title = db.Column(db.String(200), nullable=False)
     content = db.Column(db.Text)
@@ -178,7 +200,7 @@ class ChatMessage(db.Model):
     __tablename__ = 'chat_messages'
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     role = db.Column(db.String(20), nullable=False)  # user, assistant
     content = db.Column(db.Text, nullable=False)
     created_at = db.Column(db.DateTime, default=_utcnow)
@@ -188,9 +210,15 @@ class ChatMessage(db.Model):
 
 class Notification(db.Model):
     __tablename__ = 'notifications'
+    __table_args__ = (
+        CheckConstraint(
+            "type IN ('info', 'success', 'warning', 'danger')",
+            name='ck_notification_type',
+        ),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
     title = db.Column(db.String(200), nullable=False)
     message = db.Column(db.Text, nullable=False)
     type = db.Column(db.String(20), default='info')  # info, success, warning, danger
@@ -205,13 +233,13 @@ class Review(db.Model):
     __tablename__ = 'reviews'
 
     id = db.Column(db.Integer, primary_key=True)
-    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
-    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False)
+    patient_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    doctor_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False, index=True)
+    appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False, index=True)
     rating = db.Column(db.Integer, nullable=False)  # 1-5
     comment = db.Column(db.Text)
     created_at = db.Column(db.DateTime, default=_utcnow)
 
     patient = db.relationship('User', foreign_keys=[patient_id], backref='given_reviews')
     doctor = db.relationship('User', foreign_keys=[doctor_id], backref='received_reviews')
-    appointment = db.relationship('Appointment', backref='review')
+    appointment = db.relationship('Appointment', back_populates='reviews')

@@ -30,7 +30,7 @@ def save_logo(file):
     filename = secure_filename(file.filename)
     # Add timestamp to avoid collisions
     name, ext = os.path.splitext(filename)
-    filename = f"{name}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
+    filename = f"{name}_{int(datetime.now(timezone.utc).replace(tzinfo=None).timestamp())}{ext}"
     upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'clinics')
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, filename))
@@ -157,7 +157,7 @@ def create_clinic():
 @login_required
 @superadmin_required
 def edit_clinic(clinic_id):
-    clinic = Clinic.query.get_or_404(clinic_id)
+    clinic = db.session.get(Clinic, clinic_id) or abort(404)
     form = ClinicForm(obj=clinic)
 
     # Remove admin fields — they are only needed when creating a new clinic
@@ -195,7 +195,7 @@ def edit_clinic(clinic_id):
 @login_required
 @superadmin_required
 def delete_clinic(clinic_id):
-    clinic = Clinic.query.get_or_404(clinic_id)
+    clinic = db.session.get(Clinic, clinic_id) or abort(404)
     name = clinic.name
     db.session.delete(clinic)
     db.session.commit()
@@ -210,7 +210,7 @@ def delete_clinic(clinic_id):
 @login_required
 @superadmin_required
 def toggle_clinic(clinic_id):
-    clinic = Clinic.query.get_or_404(clinic_id)
+    clinic = db.session.get(Clinic, clinic_id) or abort(404)
     clinic.is_active = not clinic.is_active
     db.session.commit()
     status = 'активирована' if clinic.is_active else 'деактивирована'
@@ -275,7 +275,7 @@ def analytics():
     appointments_by_status = dict(appointments_by_status)
 
     # Appointments over last 30 days
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
     recent_appointments_count = Appointment.query.filter(
         Appointment.created_at >= thirty_days_ago
     ).count()
@@ -317,7 +317,7 @@ def analytics():
 @login_required
 @superadmin_required
 def toggle_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id) or abort(404)
     if user.role == 'superadmin':
         flash('Нельзя изменить статус суперадмина.', 'danger')
         return redirect(url_for('admin.users'))
@@ -335,7 +335,7 @@ def toggle_user(user_id):
 @login_required
 @superadmin_required
 def delete_user(user_id):
-    user = User.query.get_or_404(user_id)
+    user = db.session.get(User, user_id) or abort(404)
     if user.role == 'superadmin':
         flash('Нельзя удалить суперадмина.', 'danger')
         return redirect(url_for('admin.users'))
@@ -363,7 +363,7 @@ def profile():
         if form.avatar.data and form.avatar.data.filename:
             avatar_filename = secure_filename(form.avatar.data.filename)
             name, ext = os.path.splitext(avatar_filename)
-            avatar_filename = f"{name}_{int(datetime.now(timezone.utc).timestamp())}{ext}"
+            avatar_filename = f"{name}_{int(datetime.now(timezone.utc).replace(tzinfo=None).timestamp())}{ext}"
             upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
             os.makedirs(upload_dir, exist_ok=True)
             form.avatar.data.save(os.path.join(upload_dir, avatar_filename))
