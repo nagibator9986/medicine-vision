@@ -237,7 +237,8 @@ def book_appointment():
         if not time_val:
             flash('Пожалуйста, выберите время приёма.', 'warning')
             return render_template(
-                'patient/book_appointment.html', form=form, time_slots=time_slots
+                'patient/book_appointment.html', form=form, time_slots=time_slots,
+                doctors=doctor_list, doctor_id=doctor_id,
             )
 
         hour, minute = map(int, time_val.split(':'))
@@ -254,7 +255,8 @@ def book_appointment():
         if existing:
             flash('Это время уже занято. Выберите другое.', 'danger')
             return render_template(
-                'patient/book_appointment.html', form=form, time_slots=time_slots
+                'patient/book_appointment.html', form=form, time_slots=time_slots,
+                doctors=doctor_list, doctor_id=doctor_id,
             )
 
         doctor = db.session.get(User, doctor_id)
@@ -288,13 +290,15 @@ def book_appointment():
             db.session.rollback()
             flash('Это время уже занято. Выберите другое.', 'danger')
             return render_template(
-                'patient/book_appointment.html', form=form, time_slots=time_slots
+                'patient/book_appointment.html', form=form, time_slots=time_slots,
+                doctors=doctor_list, doctor_id=doctor_id,
             )
         flash('Вы успешно записались на приём!', 'success')
         return redirect(url_for('patient.appointments'))
 
     return render_template(
-        'patient/book_appointment.html', form=form, time_slots=time_slots
+        'patient/book_appointment.html', form=form, time_slots=time_slots,
+        doctors=doctor_list, doctor_id=form.doctor_id.data,
     )
 
 
