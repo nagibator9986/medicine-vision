@@ -86,7 +86,7 @@ def send():
             assistant_text = 'AI-ассистент не настроен. Обратитесь к администратору для настройки OPENAI_API_KEY.'
         else:
             logger.info('Calling OpenAI with key: %s...%s', api_key[:8], api_key[-4:])
-            client = openai.OpenAI(api_key=api_key)
+            client = openai.OpenAI(api_key=api_key, timeout=30.0, max_retries=2)
             response = client.chat.completions.create(
                 model='gpt-4o-mini',
                 messages=messages,
@@ -99,7 +99,9 @@ def send():
                 assistant_text = 'AI-сервис вернул пустой ответ. Попробуйте переформулировать вопрос.'
     except Exception as e:
         logger.error('OpenAI chatbot error: %s', e)
-        assistant_text = f'Ошибка AI: {type(e).__name__}. Попробуйте позже.'
+        err_msg = str(e)[:200]
+        logger.error('OpenAI error detail: %s', err_msg)
+        assistant_text = f'Ошибка AI: {type(e).__name__}. {err_msg}'
 
     if not assistant_text:
         assistant_text = 'Извините, сервис временно недоступен. Попробуйте позже.'
