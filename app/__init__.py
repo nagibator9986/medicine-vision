@@ -23,7 +23,8 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     cors_env = os.environ.get('CORS_ORIGINS', '').strip()
     allowed_origins = cors_env.split(',') if cors_env else '*'
-    socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode='threading')
+    async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
+    socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
     csrf.init_app(app)
 
     login_manager.login_view = 'auth.login'

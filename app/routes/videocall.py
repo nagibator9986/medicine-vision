@@ -65,7 +65,7 @@ def start(appointment_id):
 @videocall_bp.route('/end/<room_id>', methods=['POST'])
 @login_required
 def end(room_id):
-    videocall = VideoCall.query.filter_by(room_id=room_id).first_or_404()
+    videocall = VideoCall.query.filter_by(room_id=room_id).first() or abort(404)
     appointment = videocall.appointment
 
     if current_user.id not in (appointment.doctor_id, appointment.patient_id):
@@ -92,7 +92,7 @@ def end(room_id):
 @login_required
 @csrf.exempt
 def transcribe(room_id):
-    videocall = VideoCall.query.filter_by(room_id=room_id).first_or_404()
+    videocall = VideoCall.query.filter_by(room_id=room_id).first() or abort(404)
     appointment = videocall.appointment
 
     if current_user.id not in (appointment.doctor_id, appointment.patient_id):
