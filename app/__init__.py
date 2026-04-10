@@ -21,7 +21,8 @@ def create_app(config_class=Config):
     db.init_app(app)
     login_manager.init_app(app)
     migrate.init_app(app, db)
-    allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5050').split(',')
+    cors_env = os.environ.get('CORS_ORIGINS', '').strip()
+    allowed_origins = cors_env.split(',') if cors_env else '*'
     socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode='threading')
     csrf.init_app(app)
 

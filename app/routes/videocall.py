@@ -34,7 +34,7 @@ def room(room_id):
     return render_template('videocall/room.html', videocall=videocall, appointment=appointment, call=call)
 
 
-@videocall_bp.route('/start/<int:appointment_id>', methods=['POST'])
+@videocall_bp.route('/start/<int:appointment_id>', methods=['GET', 'POST'])
 @login_required
 def start(appointment_id):
     appointment = db.session.get(Appointment, appointment_id) or abort(404)
