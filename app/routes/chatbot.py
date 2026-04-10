@@ -72,11 +72,15 @@ def send():
         messages.append({'role': msg.role, 'content': msg.content})
 
     # Get AI response
-    assistant_text = 'Извините, сервис временно недоступен. Попробуйте позже.'
+    assistant_text = None
     try:
         import openai
         api_key = current_app.config.get('OPENAI_API_KEY', '')
-        if api_key and api_key != 'your-openai-api-key-here':
+        if not api_key or api_key == 'your-openai-api-key-here':
+            logger.warning('OPENAI_API_KEY not configured — chatbot disabled')
+            assistant_text = 'AI-ассистент не настроен. Обратитесь к администратору для настройки OPENAI_API_KEY.'
+        else:
+            logger.info('Calling OpenAI with key: %s...%s', api_key[:8], api_key[-4:])
             client = openai.OpenAI(api_key=api_key)
             response = client.chat.completions.create(
                 model='gpt-4o-mini',
@@ -86,9 +90,14 @@ def send():
             )
             if response.choices and response.choices[0].message:
                 assistant_text = response.choices[0].message.content
+            else:
+                assistant_text = 'AI-сервис вернул пустой ответ. Попробуйте переформулировать вопрос.'
     except Exception as e:
         logger.error('OpenAI chatbot error: %s', e)
-        assistant_text = 'Извините, произошла ошибка при обращении к AI-сервису. Попробуйте позже.'
+        assistant_text = f'Ошибка AI: {type(e).__name__}. Попробуйте позже.'
+
+    if not assistant_text:
+        assistant_text = 'Извините, сервис временно недоступен. Попробуйте позже.'
 
     # Save assistant response
     assistant_message = ChatMessage(
