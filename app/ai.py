@@ -1,15 +1,20 @@
 """
-OpenAI integration layer — isolates API calls from eventlet monkey-patching.
+OpenAI integration via raw HTTP — bypasses httpx/eventlet conflicts.
 
-Eventlet monkey-patches Python sockets which breaks httpx (used by OpenAI SDK).
-All OpenAI calls go through eventlet.tpool.execute() which runs them in native
-OS threads with unpatched sockets.
+The OpenAI Python SDK uses httpx which breaks under eventlet monkey-patching.
+Instead, we call the OpenAI Chat Completions API directly via requests,
+which is eventlet-compatible.
 """
+import json
 import logging
 import os
 from typing import Optional
 
+import requests
+
 logger = logging.getLogger(__name__)
+
+OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 
 
 def _get_api_key() -> str:
@@ -21,29 +26,11 @@ def _get_api_key() -> str:
     )
 
 
-def _call_openai_sync(api_key: str, messages: list, max_tokens: int = 1000,
-                       temperature: float = 0.7) -> str:
-    """
-    Make a synchronous OpenAI API call in a clean (unpatched) thread context.
-    This function is called via tpool.execute() to bypass eventlet patching.
-    """
-    import openai
-    client = openai.OpenAI(api_key=api_key, timeout=30.0, max_retries=2)
-    response = client.chat.completions.create(
-        model='gpt-4o-mini',
-        messages=messages,
-        max_tokens=max_tokens,
-        temperature=temperature,
-    )
-    if response.choices and response.choices[0].message:
-        return response.choices[0].message.content
-    return ''
-
-
 def chat_completion(messages: list, max_tokens: int = 1000,
-                    temperature: float = 0.7) -> tuple[Optional[str], Optional[str]]:
+                    temperature: float = 0.7,
+                    model: str = 'gpt-4o-mini') -> tuple[Optional[str], Optional[str]]:
     """
-    Get a chat completion from OpenAI.
+    Get a chat completion from OpenAI via raw HTTP POST.
 
     Returns:
         (response_text, error_message) — one of them is always None.
@@ -54,20 +41,39 @@ def chat_completion(messages: list, max_tokens: int = 1000,
         return None, 'AI-ассистент не настроен. Обратитесь к администратору.'
 
     try:
-        # Try eventlet.tpool first (production with eventlet worker)
-        try:
-            import eventlet.tpool
-            result = eventlet.tpool.execute(
-                _call_openai_sync, api_key, messages, max_tokens, temperature
-            )
-        except ImportError:
-            # No eventlet (local dev with threading) — call directly
-            result = _call_openai_sync(api_key, messages, max_tokens, temperature)
+        resp = requests.post(
+            OPENAI_API_URL,
+            headers={
+                'Authorization': f'Bearer {api_key}',
+                'Content-Type': 'application/json',
+            },
+            json={
+                'model': model,
+                'messages': messages,
+                'max_tokens': max_tokens,
+                'temperature': temperature,
+            },
+            timeout=45,
+        )
 
-        if result:
-            return result, None
+        if resp.status_code != 200:
+            error_body = resp.text[:300]
+            logger.error('OpenAI API %d: %s', resp.status_code, error_body)
+            return None, f'Ошибка AI-сервиса (HTTP {resp.status_code}).'
+
+        data = resp.json()
+        choices = data.get('choices', [])
+        if choices and choices[0].get('message', {}).get('content'):
+            return choices[0]['message']['content'], None
+
         return None, 'AI-сервис вернул пустой ответ.'
 
+    except requests.exceptions.Timeout:
+        logger.error('OpenAI API timeout')
+        return None, 'AI-сервис не ответил вовремя. Попробуйте позже.'
+    except requests.exceptions.ConnectionError as e:
+        logger.error('OpenAI connection error: %s', e)
+        return None, 'Не удалось подключиться к AI-сервису.'
     except Exception as e:
-        logger.error('OpenAI API error: %s: %s', type(e).__name__, e)
-        return None, f'Ошибка AI-сервиса: {type(e).__name__}'
+        logger.error('OpenAI unexpected error: %s: %s', type(e).__name__, e)
+        return None, f'Ошибка: {type(e).__name__}'

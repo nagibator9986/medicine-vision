@@ -15,3 +15,4 @@ eventlet==0.35.1
 Pillow
 httpx>=0.25.0
 certifi
+requests
