@@ -16,6 +16,23 @@ logger = logging.getLogger(__name__)
 
 OPENAI_API_URL = 'https://api.openai.com/v1/chat/completions'
 
+# Force DNS resolution via Google/Cloudflare if system DNS fails
+def _patch_dns():
+    """Add fallback DNS resolvers for Railway containers with broken DNS."""
+    try:
+        import socket
+        # Test if we can resolve openai
+        socket.getaddrinfo('api.openai.com', 443, socket.AF_INET, socket.SOCK_STREAM)
+    except socket.gaierror:
+        logger.warning('System DNS cannot resolve api.openai.com, patching resolv.conf')
+        try:
+            with open('/etc/resolv.conf', 'a') as f:
+                f.write('\nnameserver 8.8.8.8\nnameserver 1.1.1.1\n')
+        except PermissionError:
+            logger.error('Cannot write to /etc/resolv.conf')
+
+_patch_dns()
+
 
 def _get_api_key() -> str:
     """Resolve OpenAI API key from all possible sources."""
