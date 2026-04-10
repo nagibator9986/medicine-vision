@@ -109,7 +109,7 @@ def transcribe(room_id):
     summary = None
     try:
         import openai
-        client = openai.OpenAI(api_key=os.environ.get('OPENAI_API_KEY', '') or current_app.config.get('OPENAI_API_KEY', ''))
+        client = openai.OpenAI(api_key=current_app.config.get('OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', ''))
         response = client.chat.completions.create(
             model='gpt-4o-mini',
             messages=[

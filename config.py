@@ -2,7 +2,9 @@ import os
 import secrets
 from dotenv import load_dotenv
 
+# Load .env file (local dev); then .env.production (Railway/prod)
 load_dotenv()
+load_dotenv('.env.production', override=True)
 
 
 class Config:

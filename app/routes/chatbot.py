@@ -76,7 +76,7 @@ def send():
     assistant_text = None
     try:
         import openai
-        api_key = os.environ.get('OPENAI_API_KEY', '') or current_app.config.get('OPENAI_API_KEY', '')
+        api_key = current_app.config.get('OPENAI_API_KEY', '') or os.environ.get('OPENAI_API_KEY', '')
         logger.warning('CHATBOT: api_key present=%s len=%d env=%s config=%s',
                        bool(api_key), len(api_key),
                        bool(os.environ.get('OPENAI_API_KEY')),
