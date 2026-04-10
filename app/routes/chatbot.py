@@ -77,6 +77,10 @@ def send():
     try:
         import openai
         api_key = os.environ.get('OPENAI_API_KEY', '') or current_app.config.get('OPENAI_API_KEY', '')
+        logger.warning('CHATBOT: api_key present=%s len=%d env=%s config=%s',
+                       bool(api_key), len(api_key),
+                       bool(os.environ.get('OPENAI_API_KEY')),
+                       bool(current_app.config.get('OPENAI_API_KEY')))
         if not api_key or api_key == 'your-openai-api-key-here':
             logger.warning('OPENAI_API_KEY not configured — chatbot disabled')
             assistant_text = 'AI-ассистент не настроен. Обратитесь к администратору для настройки OPENAI_API_KEY.'

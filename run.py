@@ -5,6 +5,13 @@ from app.models import User, Clinic
 
 app = create_app()
 
+# Debug: log env vars at startup for Railway troubleshooting
+import logging
+_log = logging.getLogger(__name__)
+_oai = os.environ.get('OPENAI_API_KEY', '')
+_log.warning('STARTUP: OPENAI_API_KEY present=%s len=%d prefix=%s', bool(_oai), len(_oai), _oai[:12] if _oai else 'EMPTY')
+_log.warning('STARTUP: app.config OPENAI_API_KEY=%s', bool(app.config.get('OPENAI_API_KEY')))
+
 
 def _seed_demo_data():
     """Create demo accounts if the database is empty (first deploy)."""
