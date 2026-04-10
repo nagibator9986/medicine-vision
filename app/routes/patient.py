@@ -324,7 +324,7 @@ def api_time_slots():
     if doctor and doctor.clinic_id:
         clinic = db.session.get(Clinic, doctor.clinic_id)
     slots = _generate_time_slots(clinic, selected_date, doctor_id) if clinic else []
-    return jsonify(slots)
+    return jsonify({'slots': slots})
 
 
 # ---------------------------------------------------------------------------

@@ -90,7 +90,8 @@ class TestBookAppointment:
         resp = client.get(f'/patient/api/time-slots?doctor_id={doctor_user}&date={d.isoformat()}')
         assert resp.status_code == 200
         data = resp.get_json()
-        assert isinstance(data, list)
+        assert 'slots' in data
+        assert isinstance(data['slots'], list)
 
 
 class TestNotifications:
@@ -206,7 +207,7 @@ class TestWeekendSlots:
         resp = client.get(f'/patient/api/time-slots?doctor_id={doctor_user}&date={d.isoformat()}')
         assert resp.status_code == 200
         data = resp.get_json()
-        assert data == []
+        assert data['slots'] == []
 
 
 class TestStatusTransitionValidation:
