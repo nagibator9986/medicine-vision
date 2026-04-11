@@ -90,10 +90,27 @@ a:hover {
     background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--accent) 100%);
     backdrop-filter: blur(20px);
     box-shadow: var(--shadow-md);
-    height: var(--navbar-height);
+    min-height: var(--navbar-height);
     z-index: 1050;
     border: none;
     padding: 0 1rem;
+}
+
+/* Mobile collapsed menu */
+@media (max-width: 991.98px) {
+    .navbar .navbar-collapse {
+        background: linear-gradient(135deg, var(--primary-dark), var(--primary));
+        border-radius: 0 0 var(--radius) var(--radius);
+        padding: 0.75rem 1rem;
+        margin: 0.5rem -1rem -0.5rem;
+    }
+    .navbar .navbar-collapse .nav-link {
+        padding: 0.6rem 1rem !important;
+        border-radius: var(--radius-sm);
+    }
+    .navbar .navbar-collapse .nav-link:hover {
+        background: rgba(255, 255, 255, 0.15);
+    }
 }
 
 .navbar-brand {
