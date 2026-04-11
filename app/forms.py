@@ -78,11 +78,16 @@ class ClinicForm(FlaskForm):
 
     def _validate_time_format(self, field):
         if field.data:
-            if not re.match(r'^\d{2}:\d{2}$', field.data):
+            # Accept HH:MM or HH:MM:SS from browser type="time" input
+            val = field.data.strip()
+            if re.match(r'^\d{2}:\d{2}(:\d{2})?$', val):
+                h, m = int(val[:2]), int(val[3:5])
+                if h > 23 or m > 59:
+                    raise ValidationError('Некорректное время.')
+                # Normalize to HH:MM
+                field.data = f'{h:02d}:{m:02d}'
+            else:
                 raise ValidationError('Формат времени: HH:MM')
-            h, m = map(int, field.data.split(':'))
-            if h > 23 or m > 59:
-                raise ValidationError('Некорректное время.')
 
     def validate_working_hours_start(self, field):
         self._validate_time_format(field)

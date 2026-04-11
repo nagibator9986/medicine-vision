@@ -4,6 +4,11 @@
 
 {% block content %}
 <style>
+    body { padding-top: 0 !important; background: none !important; }
+    .navbar { display: none !important; }
+    .app-footer { display: none !important; }
+    .main-content { padding: 0 !important; min-height: auto !important; }
+    .flash-container { position: fixed; top: 1rem; left: 50%; transform: translateX(-50%); z-index: 9999; width: 90%; max-width: 500px; }
     .auth-wrapper {
         min-height: 100vh;
         background: linear-gradient(135deg, #0d6efd 0%, #0dcaf0 50%, #6610f2 100%);
@@ -46,6 +51,10 @@
         font-size: 1.05rem;
         border-radius: 0.75rem;
         transition: opacity 0.2s, transform 0.2s;
+        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
     }
     .btn-gradient:hover {
         opacity: 0.9;
