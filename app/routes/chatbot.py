@@ -26,7 +26,8 @@ MAX_HISTORY_MESSAGES = 50
 def chat():
     if current_user.role != 'patient':
         flash('Чат-бот доступен только для пациентов.', 'warning')
-        return redirect(url_for('auth.login'))
+        from app.routes.auth import ROLE_REDIRECTS
+        return redirect(url_for(ROLE_REDIRECTS.get(current_user.role, 'auth.login')))
 
     chat_history = ChatMessage.query.filter_by(user_id=current_user.id)\
         .order_by(ChatMessage.created_at.asc()).all()

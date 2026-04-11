@@ -42,8 +42,14 @@ def start(appointment_id):
     if current_user.id not in (appointment.doctor_id, appointment.patient_id):
         abort(403)
 
+    # If videocall already exists, rejoin the room
     if appointment.videocall:
         return redirect(url_for('videocall.room', room_id=appointment.videocall.room_id))
+
+    # Only allow starting a call from valid statuses
+    if appointment.status in ('completed', 'cancelled'):
+        flash('Нельзя начать звонок для завершённого или отменённого приёма.', 'danger')
+        return redirect(url_for('patient.index') if current_user.role == 'patient' else url_for('doctor.dashboard'))
 
     room_id = str(uuid.uuid4())
 
@@ -51,10 +57,11 @@ def start(appointment_id):
         appointment_id=appointment.id,
         room_id=room_id,
         started_at=datetime.now(timezone.utc).replace(tzinfo=None),
-        status='active'
+        status='active',
     )
 
-    appointment.status = 'in_progress'
+    if appointment.status == 'scheduled':
+        appointment.status = 'in_progress'
 
     db.session.add(videocall)
     db.session.commit()
@@ -77,7 +84,8 @@ def end(room_id):
     videocall.status = 'ended'
 
     # Don't auto-complete — doctor needs to fill report first
-    appointment.status = 'awaiting_report'
+    if appointment.status in ('scheduled', 'in_progress'):
+        appointment.status = 'awaiting_report'
 
     db.session.commit()
 
@@ -130,19 +138,23 @@ def transcribe(room_id):
     db.session.commit()
 
     # Create notifications for both doctor and patient
+    patient_name = appointment.patient.full_name if appointment.patient else 'Пациент'
+    doctor_name = appointment.doctor.full_name if appointment.doctor else 'Врач'
+    room_link = url_for('videocall.room', room_id=room_id)
+
     doctor_notification = Notification(
         user_id=appointment.doctor_id,
         title='Транскрипция консультации готова',
-        message=f'Транскрипция видеоконсультации с пациентом {appointment.patient.full_name} сохранена.',
+        message=f'Транскрипция видеоконсультации с пациентом {patient_name} сохранена.',
         type='info',
-        link=url_for('videocall.room', room_id=room_id)
+        link=room_link,
     )
     patient_notification = Notification(
         user_id=appointment.patient_id,
         title='Транскрипция консультации готова',
-        message=f'Транскрипция видеоконсультации с доктором {appointment.doctor.full_name} сохранена.',
+        message=f'Транскрипция видеоконсультации с доктором {doctor_name} сохранена.',
         type='info',
-        link=url_for('videocall.room', room_id=room_id)
+        link=room_link,
     )
 
     db.session.add(doctor_notification)

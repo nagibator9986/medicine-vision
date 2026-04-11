@@ -249,6 +249,10 @@ def create_prescription(appointment_id):
     if appointment.doctor_id != current_user.id:
         abort(403)
 
+    if appointment.status not in ('in_progress', 'awaiting_report', 'completed'):
+        flash('Рецепт можно создать только для активного или завершённого приёма.', 'warning')
+        return redirect(url_for('doctor.appointments'))
+
     form = PrescriptionForm()
 
     if form.validate_on_submit():

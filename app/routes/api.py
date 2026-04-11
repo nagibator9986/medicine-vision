@@ -1,5 +1,3 @@
-import os
-
 from flask import Blueprint, jsonify, request, abort
 from flask_login import login_required, current_user
 from datetime import datetime, timedelta
@@ -191,32 +189,3 @@ def search_doctors():
     return jsonify(result), 200
 
 
-@api_bp.route('/debug/network', methods=['GET'])
-@login_required
-def debug_network():
-    """Diagnostic: test network connectivity from Railway container."""
-    import socket
-    results = {}
-
-    for host in ['api.openai.com', 'google.com']:
-        try:
-            addrs = socket.getaddrinfo(host, 443, socket.AF_INET, socket.SOCK_STREAM)
-            results[f'dns_{host}'] = addrs[0][4][0] if addrs else 'no result'
-        except Exception as e:
-            results[f'dns_{host}'] = f'ERROR: {e}'
-
-    try:
-        import requests as req
-        r = req.get('https://api.openai.com/v1/models', timeout=10,
-                     headers={'Authorization': f'Bearer {os.environ.get("OPENAI_API_KEY", "none")}'})
-        results['http_openai'] = f'{r.status_code}'
-    except Exception as e:
-        results['http_openai'] = f'ERROR: {type(e).__name__}: {e}'
-
-    try:
-        with open('/etc/resolv.conf') as f:
-            results['resolv_conf'] = f.read()[:500]
-    except Exception:
-        results['resolv_conf'] = 'unreadable'
-
-    return jsonify(results), 200

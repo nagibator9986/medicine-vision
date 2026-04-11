@@ -40,12 +40,20 @@ class TestDoctorAppointments:
 
 
 class TestCreatePrescription:
-    def test_prescription_form_loads(self, client, doctor_user, appointment):
+    def test_prescription_form_loads(self, client, app, doctor_user, appointment):
+        with app.app_context():
+            a = db.session.get(Appointment, appointment)
+            a.status = 'awaiting_report'
+            db.session.commit()
         login(client, 'doctor@test.kz')
         resp = client.get(f'/doctor/appointments/{appointment}/prescription')
         assert resp.status_code == 200
 
     def test_create_prescription_success(self, client, app, doctor_user, appointment, patient_user):
+        with app.app_context():
+            a = db.session.get(Appointment, appointment)
+            a.status = 'awaiting_report'
+            db.session.commit()
         login(client, 'doctor@test.kz')
         resp = client.post(f'/doctor/appointments/{appointment}/prescription', data={
             'diagnosis': 'ОРВИ',
