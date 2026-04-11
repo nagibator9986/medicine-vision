@@ -23,7 +23,17 @@ def create_app(config_class=Config):
     migrate.init_app(app, db)
     cors_env = os.environ.get('CORS_ORIGINS', '').strip()
     allowed_origins = cors_env.split(',') if cors_env else '*'
-    async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', 'threading')
+
+    # Auto-detect async mode: gevent for production, threading for local dev
+    async_mode = os.environ.get('SOCKETIO_ASYNC_MODE', '')
+    if not async_mode:
+        try:
+            import gevent          # noqa: F401
+            import geventwebsocket  # noqa: F401
+            async_mode = 'gevent'
+        except ImportError:
+            async_mode = 'threading'
+
     socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
     csrf.init_app(app)
 
