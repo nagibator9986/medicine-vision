@@ -31,6 +31,7 @@
             font-family: 'Inter', sans-serif;
             color: var(--gray-800);
             overflow-x: hidden;
+            background: linear-gradient(180deg, #ffffff 0%, #f0f4ff 30%, #ffffff 60%, #f8faff 100%);
         }
 
         /* Navbar */
@@ -57,6 +58,7 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
+            filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
         }
 
         .navbar-landing .nav-link {
@@ -386,6 +388,12 @@
             padding: 1.5rem;
         }
 
+        .stat-icon {
+            font-size: 2rem;
+            color: rgba(255, 255, 255, 0.6);
+            margin-bottom: 0.75rem;
+        }
+
         .stat-number {
             font-size: 3rem;
             font-weight: 800;
@@ -398,6 +406,14 @@
             font-size: 1rem;
             color: rgba(255, 255, 255, 0.8);
             font-weight: 500;
+        }
+
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .stat-item.visible {
+            animation: countUp 0.6s ease-out forwards;
         }
 
         /* Clinics section */
@@ -673,12 +689,12 @@
                     Консультации с лучшими врачами онлайн, запись на прием,
                     электронные рецепты и AI-помощник — все в одной платформе.
                 </p>
-                <div class="d-flex flex-wrap gap-3">
+                <div class="d-flex flex-wrap gap-3 mt-2">
                     <a href="{{ url_for('auth.register') }}" class="btn-hero-primary">
-                        Зарегистрироваться <i class="fas fa-arrow-right ms-2"></i>
+                        <i class="fas fa-user-plus me-2"></i>Зарегистрироваться
                     </a>
                     <a href="{{ url_for('auth.login') }}" class="btn-hero-secondary">
-                        Войти
+                        <i class="fas fa-sign-in-alt me-2"></i>Войти
                     </a>
                 </div>
             </div>
@@ -822,24 +838,28 @@
         <div class="row">
             <div class="col-6 col-md-3 fade-up">
                 <div class="stat-item">
-                    <div class="stat-number">1 000+</div>
+                    <div class="stat-icon"><i class="fas fa-users"></i></div>
+                    <div class="stat-number" data-count="1000">0</div>
                     <div class="stat-label">Пациентов</div>
                 </div>
             </div>
             <div class="col-6 col-md-3 fade-up">
                 <div class="stat-item">
-                    <div class="stat-number">50+</div>
+                    <div class="stat-icon"><i class="fas fa-user-md"></i></div>
+                    <div class="stat-number" data-count="50">0</div>
                     <div class="stat-label">Врачей</div>
                 </div>
             </div>
             <div class="col-6 col-md-3 fade-up">
                 <div class="stat-item">
-                    <div class="stat-number">15+</div>
+                    <div class="stat-icon"><i class="fas fa-hospital"></i></div>
+                    <div class="stat-number" data-count="15">0</div>
                     <div class="stat-label">Клиник</div>
                 </div>
             </div>
             <div class="col-6 col-md-3 fade-up">
                 <div class="stat-item">
+                    <div class="stat-icon"><i class="fas fa-headset"></i></div>
                     <div class="stat-number">24/7</div>
                     <div class="stat-label">Поддержка</div>
                 </div>
@@ -972,6 +992,32 @@
     document.querySelectorAll('.fade-up').forEach(function (el) {
         observer.observe(el);
     });
+
+    // Counter animation for stats
+    var statsObserved = false;
+    var statsObserver = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+            if (entry.isIntersecting && !statsObserved) {
+                statsObserved = true;
+                document.querySelectorAll('.stat-number[data-count]').forEach(function (el) {
+                    var target = parseInt(el.getAttribute('data-count'));
+                    var duration = 1500;
+                    var start = 0;
+                    var startTime = null;
+                    function animate(timestamp) {
+                        if (!startTime) startTime = timestamp;
+                        var progress = Math.min((timestamp - startTime) / duration, 1);
+                        var eased = 1 - Math.pow(1 - progress, 3);
+                        el.textContent = Math.floor(eased * target).toLocaleString('ru-RU') + '+';
+                        if (progress < 1) requestAnimationFrame(animate);
+                    }
+                    requestAnimationFrame(animate);
+                });
+            }
+        });
+    }, { threshold: 0.3 });
+    var statsSection = document.querySelector('.stats');
+    if (statsSection) statsObserver.observe(statsSection);
 
     // Smooth scroll for anchor links
     document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {

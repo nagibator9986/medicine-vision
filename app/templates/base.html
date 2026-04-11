@@ -163,7 +163,7 @@
                                 </div>
                             </div>
                             <div class="notification-footer text-center py-2 border-top">
-                                <a href="{{ url_for('patient.notifications') if current_user.is_authenticated and current_user.role == 'patient' else '#' }}" class="text-decoration-none small">Все уведомления</a>
+                                <a href="{% if current_user.role == 'patient' %}{{ url_for('patient.notifications') }}{% elif current_user.role == 'superadmin' %}{{ url_for('admin.notifications') }}{% else %}#{% endif %}" class="text-decoration-none small">Все уведомления</a>
                             </div>
                         </div>
                     </li>

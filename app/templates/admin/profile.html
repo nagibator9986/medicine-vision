@@ -26,7 +26,7 @@
                     <!-- Current avatar -->
                     <div class="text-center mb-4">
                         {% if current_user.avatar %}
-                            <img src="{{ url_for('static', filename='uploads/avatars/' + current_user.avatar) }}" alt="Аватар" class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover;">
+                            <img src="{{ url_for('static', filename=current_user.avatar) }}" alt="Аватар" class="rounded-circle" style="width: 100px; height: 100px; object-fit: cover;">
                         {% else %}
                             <div class="rounded-circle bg-light d-flex align-items-center justify-content-center mx-auto" style="width: 100px; height: 100px;">
                                 <i class="fas fa-user fa-3x text-muted"></i>

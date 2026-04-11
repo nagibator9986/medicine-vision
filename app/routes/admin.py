@@ -367,7 +367,7 @@ def profile():
             upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
             os.makedirs(upload_dir, exist_ok=True)
             form.avatar.data.save(os.path.join(upload_dir, avatar_filename))
-            current_user.avatar = avatar_filename
+            current_user.avatar = f'uploads/avatars/{avatar_filename}'
 
         db.session.commit()
         flash('Профиль обновлен.', 'success')

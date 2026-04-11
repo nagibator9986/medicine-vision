@@ -331,6 +331,22 @@ def api_time_slots():
 # Appointments list
 # ---------------------------------------------------------------------------
 
+@patient_bp.route('/appointments/<int:appointment_id>/cancel', methods=['POST'])
+@login_required
+@patient_required
+def cancel_appointment(appointment_id):
+    appointment = db.session.get(Appointment, appointment_id) or abort(404)
+    if appointment.patient_id != current_user.id:
+        abort(403)
+    if appointment.status != 'scheduled':
+        flash('Можно отменить только запланированный приём.', 'warning')
+        return redirect(url_for('patient.appointments'))
+    appointment.status = 'cancelled'
+    db.session.commit()
+    flash('Запись отменена.', 'success')
+    return redirect(url_for('patient.appointments'))
+
+
 @patient_bp.route('/appointments')
 @login_required
 @patient_required
