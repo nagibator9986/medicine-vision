@@ -34,7 +34,14 @@ def create_app(config_class=Config):
         except ImportError:
             async_mode = 'threading'
 
-    socketio.init_app(app, cors_allowed_origins=allowed_origins, async_mode=async_mode)
+    # manage_session=False makes Flask-SocketIO share the Flask-Login session
+    # so current_user works in SocketIO event handlers
+    socketio.init_app(
+        app,
+        cors_allowed_origins=allowed_origins,
+        async_mode=async_mode,
+        manage_session=False,
+    )
     csrf.init_app(app)
 
     login_manager.login_view = 'auth.login'

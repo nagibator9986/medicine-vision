@@ -507,54 +507,115 @@
     let transcriptionOn  = false;
     let fullTranscript   = '';
 
+    // Signaling state
+    let isInitiator       = false;   // decided by server based on join order
+    let mediaReady        = false;   // true after getUserMedia resolved
+    let socketReady       = false;   // true after socket connected
+    let joined            = false;   // true after server confirms join
+    let iceCandidateQueue = [];      // buffer ICE candidates until remoteDescription is set
+    let hasRemoteDesc     = false;
+
     // ── STUN/TURN servers ──
     const iceConfig = {
         iceServers: [
             { urls: 'stun:stun.l.google.com:19302' },
             { urls: 'stun:stun1.l.google.com:19302' },
-            { urls: 'stun:stun2.l.google.com:19302' }
+            { urls: 'stun:stun2.l.google.com:19302' },
+            { urls: 'stun:stun3.l.google.com:19302' },
+            { urls: 'stun:stun4.l.google.com:19302' }
         ]
     };
 
     // ── Socket.IO ──
-    const socket = io({ transports: ['websocket', 'polling'] });
+    const socket = io({
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 5,
+    });
 
     socket.on('connect', function() {
-        console.log('Socket connected, joining room:', roomId);
-        socket.emit('join_room', { room_id: roomId });
+        console.log('[Socket] Connected');
+        socketReady = true;
         setConnectionStatus('connecting', 'Подключение к комнате...');
+        // Wait for media before joining room (so peer connection has tracks)
+        tryJoinRoom();
     });
 
-    socket.on('user_joined', function(data) {
-        console.log('User joined:', data);
-        setConnectionStatus('connected', 'Собеседник подключился');
-        createOffer();
+    socket.on('joined', function(data) {
+        console.log('[Socket] Joined room, is_initiator=' + data.is_initiator +
+                    ', participants=' + data.participants_count);
+        joined = true;
+        isInitiator = data.is_initiator;
+
+        if (data.participants_count >= 2) {
+            setConnectionStatus('connecting', 'Собеседник подключён, устанавливаем связь...');
+        } else {
+            setConnectionStatus('connecting', 'Ожидание собеседника...');
+        }
+
+        // If I'm second (not initiator), I should start the offer immediately
+        // because the other peer is already here waiting
+        if (!isInitiator && localStream) {
+            createOffer();
+        }
     });
 
-    socket.on('offer', function(data) {
-        console.log('Received offer');
-        handleOffer(data.offer);
+    socket.on('peer_joined', function(data) {
+        console.log('[Socket] Peer joined:', data);
+        setConnectionStatus('connecting', 'Собеседник подключён, устанавливаем связь...');
+        // I'm the initiator: second peer joined → they will send me offer
+        // (in this design, the second one sends offer; first waits)
     });
 
-    socket.on('answer', function(data) {
-        console.log('Received answer');
-        handleAnswer(data.answer);
+    socket.on('offer', async function(data) {
+        console.log('[Socket] Received offer');
+        await handleOffer(data.offer);
     });
 
-    socket.on('ice_candidate', function(data) {
-        handleIceCandidate(data.candidate);
+    socket.on('answer', async function(data) {
+        console.log('[Socket] Received answer');
+        await handleAnswer(data.answer);
+    });
+
+    socket.on('ice_candidate', async function(data) {
+        await handleIceCandidate(data.candidate);
     });
 
     socket.on('user_left', function(data) {
-        console.log('User left');
+        console.log('[Socket] User left');
         setConnectionStatus('error', 'Собеседник покинул звонок');
         remotePlaceholder.style.display = 'flex';
         remoteVideo.srcObject = null;
+        // Reset peer connection for possible rejoin
+        if (peerConnection) {
+            peerConnection.close();
+            peerConnection = null;
+        }
+        hasRemoteDesc = false;
+        iceCandidateQueue = [];
+    });
+
+    socket.on('error', function(data) {
+        console.error('[Socket] Error:', data);
+        setConnectionStatus('error', data.message || 'Ошибка соединения');
     });
 
     socket.on('disconnect', function() {
+        console.log('[Socket] Disconnected');
+        socketReady = false;
+        joined = false;
         setConnectionStatus('error', 'Соединение потеряно');
     });
+
+    function tryJoinRoom() {
+        // Join room only after both socket and media are ready
+        if (socketReady && mediaReady && !joined) {
+            console.log('[Signal] Joining room', roomId);
+            // Ensure peer connection exists with tracks before any offer/answer
+            if (!peerConnection) createPeerConnection();
+            socket.emit('join_room', { room_id: roomId });
+        }
+    }
 
     // ── Connection status helper ──
     function setConnectionStatus(type, text) {
@@ -574,25 +635,37 @@
                 audio: { echoCancellation: true, noiseSuppression: true }
             });
             localVideo.srcObject = localStream;
+            mediaReady = true;
+            console.log('[Media] Ready');
+            // Now that media is ready, try to join room
+            tryJoinRoom();
         } catch (err) {
-            console.error('Media error:', err);
+            console.error('[Media] Error:', err);
             setConnectionStatus('error', 'Не удалось получить доступ к камере/микрофону');
         }
     }
 
     // ── WebRTC ──
     function createPeerConnection() {
+        if (peerConnection) return peerConnection;
+
+        console.log('[RTC] Creating peer connection');
         peerConnection = new RTCPeerConnection(iceConfig);
 
         if (localStream) {
             localStream.getTracks().forEach(track => {
                 peerConnection.addTrack(track, localStream);
             });
+        } else {
+            console.warn('[RTC] localStream not ready when creating peer connection!');
         }
 
         peerConnection.ontrack = function(event) {
-            remoteVideo.srcObject = event.streams[0];
-            remotePlaceholder.style.display = 'none';
+            console.log('[RTC] Received remote track');
+            if (remoteVideo.srcObject !== event.streams[0]) {
+                remoteVideo.srcObject = event.streams[0];
+                remotePlaceholder.style.display = 'none';
+            }
         };
 
         peerConnection.onicecandidate = function(event) {
@@ -606,51 +679,92 @@
 
         peerConnection.oniceconnectionstatechange = function() {
             const state = peerConnection.iceConnectionState;
+            console.log('[RTC] ICE state:', state);
             if (state === 'connected' || state === 'completed') {
                 setConnectionStatus('connected', 'Подключено');
                 startTimer();
-            } else if (state === 'disconnected' || state === 'failed') {
+            } else if (state === 'failed') {
+                setConnectionStatus('error', 'Не удалось установить соединение. Проверьте сеть.');
+            } else if (state === 'disconnected') {
                 setConnectionStatus('error', 'Соединение прервано');
             }
         };
+
+        peerConnection.onconnectionstatechange = function() {
+            console.log('[RTC] Connection state:', peerConnection.connectionState);
+        };
+
+        return peerConnection;
     }
 
     async function createOffer() {
-        if (!peerConnection) createPeerConnection();
         try {
-            const offer = await peerConnection.createOffer();
+            createPeerConnection();
+            console.log('[RTC] Creating offer');
+            const offer = await peerConnection.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: true,
+            });
             await peerConnection.setLocalDescription(offer);
             socket.emit('offer', { room_id: roomId, offer: offer });
         } catch (err) {
-            console.error('Create offer error:', err);
+            console.error('[RTC] Create offer error:', err);
+            setConnectionStatus('error', 'Ошибка создания offer');
         }
     }
 
     async function handleOffer(offer) {
-        if (!peerConnection) createPeerConnection();
         try {
+            createPeerConnection();
+            console.log('[RTC] Setting remote description (offer)');
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            hasRemoteDesc = true;
+            await flushIceQueue();
+
+            console.log('[RTC] Creating answer');
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('answer', { room_id: roomId, answer: answer });
         } catch (err) {
-            console.error('Handle offer error:', err);
+            console.error('[RTC] Handle offer error:', err);
+            setConnectionStatus('error', 'Ошибка обработки offer');
         }
     }
 
     async function handleAnswer(answer) {
         try {
+            console.log('[RTC] Setting remote description (answer)');
             await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            hasRemoteDesc = true;
+            await flushIceQueue();
         } catch (err) {
-            console.error('Handle answer error:', err);
+            console.error('[RTC] Handle answer error:', err);
         }
     }
 
-    function handleIceCandidate(candidate) {
-        if (peerConnection && candidate) {
-            peerConnection.addIceCandidate(new RTCIceCandidate(candidate)).catch(function(err) {
-                console.error('ICE candidate error:', err);
-            });
+    async function handleIceCandidate(candidate) {
+        if (!candidate) return;
+        if (!peerConnection || !hasRemoteDesc) {
+            // Queue candidate until remote description is set
+            iceCandidateQueue.push(candidate);
+            return;
+        }
+        try {
+            await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        } catch (err) {
+            console.error('[RTC] addIceCandidate error:', err);
+        }
+    }
+
+    async function flushIceQueue() {
+        if (!peerConnection) return;
+        while (iceCandidateQueue.length > 0) {
+            const candidate = iceCandidateQueue.shift();
+            try {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            } catch (err) {
+                console.error('[RTC] flushIceQueue error:', err);
+            }
         }
     }
 
@@ -731,15 +845,22 @@
         socket.emit('leave_room', { room_id: roomId });
         socket.disconnect();
 
-        // POST end call
+        // POST end call (triggers redirect server-side)
         try {
-            await fetch('/videocall/end/' + roomId, { method: 'POST' });
+            const resp = await fetch('/videocall/end/' + roomId, {
+                method: 'POST',
+                redirect: 'follow',
+            });
+            if (resp.redirected) {
+                window.location.href = resp.url;
+                return;
+            }
         } catch (err) {
             console.error('End call error:', err);
         }
 
-        // Redirect
-        window.location.href = document.referrer || '/';
+        // Fallback redirect
+        window.location.href = '/';
     }
 
     // ── Speech Recognition (Transcription) ──
@@ -844,9 +965,7 @@
     });
 
     // ── Init ──
-    initMedia().then(function() {
-        createPeerConnection();
-    });
+    initMedia();
 
 })();
 </script>
