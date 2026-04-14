@@ -863,12 +863,30 @@
         window.location.href = '/';
     }
 
+    // ── Transcription helpers ──
+    function showTranscriptError(msg) {
+        const div = document.createElement('div');
+        div.style.cssText = 'padding:10px 14px;background:rgba(239,68,68,.15);border-radius:8px;border-left:3px solid rgba(239,68,68,.6);color:#fca5a5;font-size:.83rem;margin-bottom:8px;';
+        div.textContent = '⚠ ' + msg;
+        transcriptionBody.appendChild(div);
+        transcriptionBody.scrollTop = transcriptionBody.scrollHeight;
+        // Auto-deactivate transcription on fatal errors
+        transcriptionOn = false;
+        btnToggleTranscription.classList.remove('transcription-active');
+    }
+
     // ── Speech Recognition (Transcription) ──
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
     btnToggleTranscription.addEventListener('click', function() {
         if (!SpeechRecognition) {
-            alert('Ваш браузер не поддерживает распознавание речи.');
+            // Open panel and show unsupported message
+            transcriptionPanel.classList.add('open');
+            transcriptionEmpty.style.display = 'none';
+            showTranscriptError(
+                'Ваш браузер не поддерживает распознавание речи. ' +
+                'Используйте Chrome или Edge.'
+            );
             return;
         }
 
@@ -916,15 +934,32 @@
 
         recognition.onerror = function(event) {
             console.error('Speech recognition error:', event.error);
-            if (event.error === 'not-allowed') {
-                setConnectionStatus('error', 'Доступ к микрофону для распознавания отклонён');
+            const errorMessages = {
+                'not-allowed':        'Доступ к микрофону запрещён. Разрешите доступ в настройках браузера.',
+                'audio-capture':      'Микрофон недоступен. Проверьте подключение.',
+                'network':            'Нет сети для распознавания речи. Проверьте интернет-соединение.',
+                'service-not-allowed':'Сервис распознавания речи заблокирован браузером.',
+                'no-speech':          '', // not an error — just silence, ignore
+                'aborted':            '', // user stopped, ignore
+            };
+            const msg = errorMessages[event.error];
+            if (msg === undefined) {
+                showTranscriptError('Ошибка распознавания: ' + event.error);
+            } else if (msg) {
+                showTranscriptError(msg);
             }
         };
 
         recognition.onend = function() {
-            // Restart if still enabled
+            // Restart if still enabled (but not after a fatal error that cleared transcriptionOn)
             if (transcriptionOn) {
-                try { recognition.start(); } catch(e) {}
+                setTimeout(function() {
+                    if (transcriptionOn) {
+                        try { recognition.start(); } catch(e) {
+                            console.error('Recognition restart failed:', e);
+                        }
+                    }
+                }, 200);
             }
         };
 

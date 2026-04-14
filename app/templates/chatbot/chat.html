@@ -3,6 +3,9 @@
 {% block title %}AI Ассистент - MediPlatform{% endblock %}
 
 {% block extra_css %}
+<!-- Markdown renderer + XSS sanitizer -->
+<script src="https://cdn.jsdelivr.net/npm/marked@14/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.1.6/purify.min.js"></script>
 <style>
     .chat-page {
         padding-top: 80px;
@@ -290,7 +293,62 @@
         transform: none;
     }
 
-    /* Responsive */
+    /* ── Markdown rendering inside assistant bubbles ── */
+    .message-row.assistant .message-bubble p {
+        margin: 0 0 0.45em;
+    }
+    .message-row.assistant .message-bubble p:last-child { margin-bottom: 0; }
+
+    .message-row.assistant .message-bubble ul,
+    .message-row.assistant .message-bubble ol {
+        padding-left: 1.4em;
+        margin: 0.3em 0 0.45em;
+    }
+    .message-row.assistant .message-bubble li { margin: 0.15em 0; }
+
+    .message-row.assistant .message-bubble strong { font-weight: 700; }
+    .message-row.assistant .message-bubble em { font-style: italic; }
+
+    .message-row.assistant .message-bubble code {
+        background: rgba(0,0,0,.07);
+        border-radius: 4px;
+        padding: 1px 5px;
+        font-size: .84em;
+        font-family: 'Courier New', monospace;
+    }
+    .message-row.assistant .message-bubble pre {
+        background: rgba(0,0,0,.07);
+        border-radius: 8px;
+        padding: 10px 14px;
+        overflow-x: auto;
+        margin: 0.45em 0;
+    }
+    .message-row.assistant .message-bubble pre code {
+        background: none;
+        padding: 0;
+        font-size: .82em;
+    }
+    .message-row.assistant .message-bubble blockquote {
+        border-left: 3px solid #0d6efd;
+        margin: 0.4em 0;
+        padding-left: 0.9em;
+        color: #546e7a;
+    }
+    .message-row.assistant .message-bubble h1,
+    .message-row.assistant .message-bubble h2,
+    .message-row.assistant .message-bubble h3,
+    .message-row.assistant .message-bubble h4 {
+        font-size: 1em;
+        font-weight: 700;
+        margin: 0.5em 0 0.25em;
+    }
+    .message-row.assistant .message-bubble hr {
+        border: none;
+        border-top: 1px solid rgba(0,0,0,.12);
+        margin: 0.5em 0;
+    }
+
+    /* ── Responsive ── */
     @media (max-width: 768px) {
         .chat-wrapper {
             border-radius: 0;
@@ -340,7 +398,7 @@
                         {% endif %}
                     </div>
                     <div>
-                        <div class="message-bubble">{{ msg.content }}</div>
+                        <div class="message-bubble"{% if msg.role == 'assistant' %} data-markdown="1"{% endif %}>{{ msg.content }}</div>
                         <div class="message-time">{{ msg.timestamp if msg.timestamp else '' }}</div>
                     </div>
                 </div>
@@ -372,6 +430,23 @@
 <script>
 (function() {
     'use strict';
+
+    // ── Markdown renderer ──
+    marked.setOptions({ gfm: true, breaks: true });
+
+    function renderMarkdown(text) {
+        const raw = marked.parse(text || '');
+        return DOMPurify.sanitize(raw, {
+            ALLOWED_TAGS: ['p','br','strong','em','b','i','ul','ol','li',
+                           'code','pre','blockquote','h1','h2','h3','h4','hr','a'],
+            ALLOWED_ATTR: ['href', 'target'],
+        });
+    }
+
+    // Render markdown in history messages loaded from server
+    document.querySelectorAll('.message-bubble[data-markdown]').forEach(function(el) {
+        el.innerHTML = renderMarkdown(el.textContent);
+    });
 
     const chatMessages = document.getElementById('chatMessages');
     const chatInput    = document.getElementById('chatInput');
@@ -472,7 +547,11 @@
 
         const bubble = document.createElement('div');
         bubble.className = 'message-bubble';
-        bubble.textContent = text;
+        if (role === 'assistant') {
+            bubble.innerHTML = renderMarkdown(text);
+        } else {
+            bubble.textContent = text;
+        }
 
         const timeEl = document.createElement('div');
         timeEl.className = 'message-time';
