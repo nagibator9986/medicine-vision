@@ -54,11 +54,18 @@
         .navbar-brand-text {
             font-weight: 800;
             font-size: 1.5rem;
+            color: #ffffff;
+            -webkit-text-fill-color: #ffffff;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
+            transition: color 0.3s;
+        }
+
+        .navbar-landing.scrolled .navbar-brand-text {
             background: linear-gradient(135deg, var(--primary-start), var(--primary-end));
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            filter: drop-shadow(0 2px 4px rgba(102, 126, 234, 0.3));
+            text-shadow: none;
         }
 
         .navbar-landing .nav-link {
@@ -653,14 +660,18 @@
 <nav class="navbar-landing" id="navbar">
     <div class="container">
         <div class="d-flex align-items-center justify-content-between">
-            <a href="/" class="navbar-brand-text text-decoration-none">
+            <a href="{{ url_for('landing') }}" class="navbar-brand-text text-decoration-none">
                 <i class="fas fa-heartbeat me-2"></i>MediPlatform
             </a>
             <div class="d-none d-md-flex align-items-center gap-4">
                 <a href="#features" class="nav-link">Возможности</a>
                 <a href="#how-it-works" class="nav-link">Как это работает</a>
                 <a href="#clinics" class="nav-link">Для клиник</a>
+                {% if current_user.is_authenticated %}
+                <a href="{{ url_for('index') }}" class="btn btn-nav-login">В кабинет</a>
+                {% else %}
                 <a href="{{ url_for('auth.login') }}" class="btn btn-nav-login">Войти</a>
+                {% endif %}
             </div>
             <button class="btn d-md-none" style="color: #fff; font-size: 1.25rem;" onclick="document.getElementById('mobileMenu').classList.toggle('d-none')">
                 <i class="fas fa-bars"></i>
@@ -767,20 +778,20 @@
             </div>
             <div class="col-md-6 col-lg-4 fade-up">
                 <div class="feature-card">
-                    <div class="feature-icon cyan">
-                        <i class="fas fa-heartbeat"></i>
-                    </div>
-                    <h5>Трекер здоровья</h5>
-                    <p>Отслеживайте давление, пульс, вес и другие показатели. Визуализация данных поможет контролировать здоровье.</p>
-                </div>
-            </div>
-            <div class="col-md-6 col-lg-4 fade-up">
-                <div class="feature-card">
                     <div class="feature-icon rose">
                         <i class="fas fa-calendar-check"></i>
                     </div>
                     <h5>Запись на прием</h5>
                     <p>Записывайтесь к врачу онлайн в удобное время. Выбирайте специалиста и клинику за пару кликов.</p>
+                </div>
+            </div>
+            <div class="col-md-6 col-lg-4 fade-up">
+                <div class="feature-card">
+                    <div class="feature-icon cyan">
+                        <i class="fas fa-star"></i>
+                    </div>
+                    <h5>Отзывы и рейтинги</h5>
+                    <p>Оценивайте приёмы и читайте отзывы других пациентов — выбирайте лучших специалистов.</p>
                 </div>
             </div>
             <div class="col-md-6 col-lg-4 fade-up">
@@ -909,8 +920,8 @@
                         Зарегистрируйте вашу клинику и получите доступ ко всем инструментам
                         телемедицинской платформы. Мы поможем с настройкой и интеграцией.
                     </p>
-                    <a href="{{ url_for('auth.register') }}" class="btn-clinic">
-                        Зарегистрировать клинику <i class="fas fa-arrow-right ms-2"></i>
+                    <a href="mailto:info@mediplatform.kz?subject=Подключение%20клиники%20к%20MediPlatform" class="btn-clinic">
+                        Связаться с нами <i class="fas fa-arrow-right ms-2"></i>
                     </a>
                 </div>
             </div>

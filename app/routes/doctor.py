@@ -38,16 +38,20 @@ def doctor_required(f):
 
 
 def _save_avatar(file_storage):
-    """Save an uploaded avatar and return the relative path for DB storage."""
+    """Save an uploaded avatar and return the bare filename for DB storage."""
+    if not file_storage or not getattr(file_storage, 'filename', ''):
+        return None
     filename = secure_filename(file_storage.filename)
-    if not filename:
+    if not filename or '.' not in filename:
         return None
     ext = filename.rsplit('.', 1)[-1].lower()
+    if ext not in ('jpg', 'jpeg', 'png'):
+        return None
     unique_name = f"{uuid.uuid4().hex}.{ext}"
     upload_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'avatars')
     os.makedirs(upload_dir, exist_ok=True)
     file_storage.save(os.path.join(upload_dir, unique_name))
-    return f"uploads/avatars/{unique_name}"
+    return unique_name
 
 
 # ---------------------------------------------------------------------------
@@ -340,7 +344,11 @@ def reviews():
         doctor_id=current_user.id
     ).order_by(Review.created_at.desc()).all()
 
-    return render_template('doctor/reviews.html', reviews=doctor_reviews)
+    avg_rating = None
+    if doctor_reviews:
+        avg_rating = round(sum(r.rating for r in doctor_reviews) / len(doctor_reviews), 2)
+
+    return render_template('doctor/reviews.html', reviews=doctor_reviews, avg_rating=avg_rating)
 
 
 # ---------------------------------------------------------------------------

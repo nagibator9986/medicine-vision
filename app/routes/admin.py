@@ -1,4 +1,5 @@
 import os
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, abort
@@ -6,10 +7,16 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.models import User, Clinic, Appointment, VideoCall, ClinicSpecialization, Notification
+from app.models import (
+    User, Clinic, Appointment, VideoCall, ClinicSpecialization, Notification,
+    Prescription, MedicalRecord, Review, ChatMessage,
+)
 from app.forms import ClinicForm, ProfileForm
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
+
+
+ALLOWED_IMAGE_EXTENSIONS = {'jpg', 'jpeg', 'png', 'svg'}
 
 
 def superadmin_required(f):
@@ -26,15 +33,39 @@ def superadmin_required(f):
 
 
 def save_logo(file):
-    """Save an uploaded logo file and return the stored filename with 'clinics/' prefix."""
-    filename = secure_filename(file.filename)
-    # Add timestamp to avoid collisions
-    name, ext = os.path.splitext(filename)
-    filename = f"{name}_{int(datetime.now(timezone.utc).replace(tzinfo=None).timestamp())}{ext}"
+    """Save an uploaded clinic logo and return the stored filename (without subdir prefix)."""
+    if not file or not getattr(file, 'filename', ''):
+        return None
+    original = secure_filename(file.filename) or 'logo'
+    ext = original.rsplit('.', 1)[-1].lower() if '.' in original else ''
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return None
+    filename = f"{uuid.uuid4().hex}.{ext}"
     upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'clinics')
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, filename))
     return filename
+
+
+def _wipe_user(user):
+    """Remove all records that reference the given user so it can be hard-deleted."""
+    Review.query.filter(
+        db.or_(Review.patient_id == user.id, Review.doctor_id == user.id)
+    ).delete(synchronize_session=False)
+    Prescription.query.filter(
+        db.or_(Prescription.patient_id == user.id, Prescription.doctor_id == user.id)
+    ).delete(synchronize_session=False)
+    MedicalRecord.query.filter(
+        db.or_(MedicalRecord.patient_id == user.id, MedicalRecord.doctor_id == user.id)
+    ).delete(synchronize_session=False)
+    Notification.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    ChatMessage.query.filter_by(user_id=user.id).delete(synchronize_session=False)
+    # Appointments — cascades to Prescription / VideoCall / Review via relationships
+    appts = Appointment.query.filter(
+        db.or_(Appointment.patient_id == user.id, Appointment.doctor_id == user.id)
+    ).all()
+    for appt in appts:
+        db.session.delete(appt)
 
 
 # ---------------------------------------------------------------------------
@@ -197,9 +228,25 @@ def edit_clinic(clinic_id):
 def delete_clinic(clinic_id):
     clinic = db.session.get(Clinic, clinic_id) or abort(404)
     name = clinic.name
-    db.session.delete(clinic)
-    db.session.commit()
-    flash(f'Клиника "{name}" удалена.', 'warning')
+
+    try:
+        # Wipe every user tied to this clinic (staff + patients)
+        members = User.query.filter(User.clinic_id == clinic.id).all()
+        for member in members:
+            _wipe_user(member)
+            db.session.delete(member)
+
+        # Delete any remaining clinic-level data
+        Appointment.query.filter_by(clinic_id=clinic.id).delete(synchronize_session=False)
+        ClinicSpecialization.query.filter_by(clinic_id=clinic.id).delete(synchronize_session=False)
+
+        db.session.delete(clinic)
+        db.session.commit()
+        flash(f'Клиника "{name}" удалена.', 'warning')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception('Failed to delete clinic %s', clinic_id)
+        flash(f'Не удалось удалить клинику: {exc}', 'danger')
     return redirect(url_for('admin.clinics'))
 
 
@@ -340,9 +387,15 @@ def delete_user(user_id):
         flash('Нельзя удалить суперадмина.', 'danger')
         return redirect(url_for('admin.users'))
     name = user.full_name
-    db.session.delete(user)
-    db.session.commit()
-    flash(f'Пользователь "{name}" удален.', 'warning')
+    try:
+        _wipe_user(user)
+        db.session.delete(user)
+        db.session.commit()
+        flash(f'Пользователь "{name}" удалён.', 'warning')
+    except Exception as exc:
+        db.session.rollback()
+        current_app.logger.exception('Failed to delete user %s', user_id)
+        flash(f'Не удалось удалить пользователя: {exc}', 'danger')
     return redirect(url_for('admin.users'))
 
 

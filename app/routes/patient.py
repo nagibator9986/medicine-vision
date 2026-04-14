@@ -426,7 +426,7 @@ def profile():
         current_user.gender = form.gender.data if form.gender.data else None
         current_user.address = form.address.data.strip() if form.address.data else None
 
-        if form.avatar.data:
+        if form.avatar.data and getattr(form.avatar.data, 'filename', ''):
             from werkzeug.utils import secure_filename
             import os, uuid
             filename = secure_filename(form.avatar.data.filename)
@@ -440,7 +440,7 @@ def profile():
                 os.makedirs(upload_dir, exist_ok=True)
                 filepath = os.path.join(upload_dir, unique_name)
                 form.avatar.data.save(filepath)
-                current_user.avatar = f'uploads/avatars/{unique_name}'
+                current_user.avatar = unique_name
 
         db.session.commit()
         flash('Профиль успешно обновлён.', 'success')

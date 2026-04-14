@@ -71,6 +71,7 @@ def start(appointment_id):
 
 @videocall_bp.route('/end/<room_id>', methods=['POST'])
 @login_required
+@csrf.exempt
 def end(room_id):
     videocall = VideoCall.query.filter_by(room_id=room_id).first() or abort(404)
     appointment = videocall.appointment
@@ -83,9 +84,9 @@ def end(room_id):
         videocall.duration_seconds = int((videocall.ended_at - videocall.started_at).total_seconds())
     videocall.status = 'ended'
 
-    # Don't auto-complete — doctor needs to fill report first
-    if appointment.status in ('scheduled', 'in_progress'):
-        appointment.status = 'awaiting_report'
+    # Auto-complete appointment once the call ends
+    if appointment.status in ('scheduled', 'in_progress', 'awaiting_report'):
+        appointment.status = 'completed'
 
     db.session.commit()
 

@@ -98,7 +98,7 @@ class TestVideoCallEnd:
             assert vc.status == 'ended'
             assert vc.ended_at is not None
             apt = db.session.get(Appointment, appointment)
-            assert apt.status == 'awaiting_report'
+            assert apt.status == 'completed'
 
 
 class TestVideoCallTranscribe:

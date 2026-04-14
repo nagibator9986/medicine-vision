@@ -60,7 +60,7 @@
                         <div class="text-center mb-4">
                             <div class="position-relative d-inline-block">
                                 {% if current_user.avatar %}
-                                <img src="{{ url_for('static', filename=current_user.avatar) }}"
+                                <img src="{{ url_for('static', filename='uploads/avatars/' + current_user.avatar) }}"
                                      alt="Аватар" class="avatar-preview" id="avatarPreview">
                                 {% else %}
                                 <div class="avatar-placeholder" id="avatarPlaceholder">

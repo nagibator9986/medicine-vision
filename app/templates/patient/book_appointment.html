@@ -109,17 +109,38 @@
                         <!-- Step 1: Select Doctor -->
                         <div class="step-content" id="step1">
                             <h5 class="mb-3"><i class="fas fa-user-md me-2"></i>Выберите врача</h5>
+                            <div class="row g-2 mb-3">
+                                <div class="col-md-7">
+                                    <input type="text" id="doctorSearch" class="form-control"
+                                           placeholder="Поиск по имени или специализации...">
+                                </div>
+                                <div class="col-md-5">
+                                    <select id="doctorSpecFilter" class="form-select">
+                                        <option value="">Все специализации</option>
+                                        {% set seen_specs = [] %}
+                                        {% for doctor in doctors %}
+                                            {% if doctor.specialization and doctor.specialization not in seen_specs %}
+                                                {% set _ = seen_specs.append(doctor.specialization) %}
+                                                <option value="{{ doctor.specialization }}">{{ doctor.specialization }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
                             <div class="mb-3">
-                                <select name="doctor_id" id="doctor_id" class="form-select form-select-lg" required>
+                                <select name="doctor_id" id="doctor_id" class="form-select form-select-lg" size="6" required>
                                     <option value="">-- Выберите врача --</option>
                                     {% for doctor in doctors %}
                                     <option value="{{ doctor.id }}"
+                                            data-name="{{ (doctor.first_name ~ ' ' ~ doctor.last_name)|lower }}"
+                                            data-spec="{{ (doctor.specialization or '')|lower }}"
                                             {% if doctor_id and doctor.id == doctor_id %}selected{% endif %}>
                                         {{ doctor.first_name }} {{ doctor.last_name }}
-                                        {% if doctor.specialization %} - {{ doctor.specialization }}{% endif %}
+                                        {% if doctor.specialization %} — {{ doctor.specialization }}{% endif %}
                                     </option>
                                     {% endfor %}
                                 </select>
+                                <div class="form-text">Используйте поиск или фильтр по специализации для быстрого подбора.</div>
                             </div>
                             <div class="text-end">
                                 <button type="button" class="btn btn-primary" onclick="nextStep(2)">
@@ -284,6 +305,32 @@
 
     document.getElementById('doctor_id').addEventListener('change', loadTimeSlots);
     document.getElementById('appointment_date').addEventListener('change', loadTimeSlots);
+
+    // Client-side doctor filtering
+    function filterDoctors() {
+        const q = (document.getElementById('doctorSearch').value || '').toLowerCase().trim();
+        const spec = (document.getElementById('doctorSpecFilter').value || '').toLowerCase().trim();
+        const select = document.getElementById('doctor_id');
+        let visibleCount = 0;
+        Array.from(select.options).forEach(opt => {
+            if (!opt.value) { opt.hidden = false; return; }
+            const name = opt.dataset.name || '';
+            const dspec = opt.dataset.spec || '';
+            const matchesQ = !q || name.includes(q) || dspec.includes(q);
+            const matchesSpec = !spec || dspec === spec;
+            const show = matchesQ && matchesSpec;
+            opt.hidden = !show;
+            if (show) visibleCount++;
+        });
+        // Deselect if hidden
+        if (select.selectedOptions[0] && select.selectedOptions[0].hidden) {
+            select.value = '';
+        }
+    }
+    const docSearch = document.getElementById('doctorSearch');
+    const docSpec = document.getElementById('doctorSpecFilter');
+    if (docSearch) docSearch.addEventListener('input', filterDoctors);
+    if (docSpec) docSpec.addEventListener('change', filterDoctors);
 
     // Auto-load if doctor is pre-selected
     document.addEventListener('DOMContentLoaded', function() {

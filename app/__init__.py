@@ -82,6 +82,10 @@ def create_app(config_class=Config):
             return redirect(url_for(ROLE_REDIRECTS.get(current_user.role, 'auth.login')))
         return render_template('landing.html')
 
+    @app.route('/landing')
+    def landing():
+        return render_template('landing.html')
+
     @app.context_processor
     def inject_now():
         from datetime import datetime, timezone
