@@ -681,7 +681,12 @@
             <a href="#features" class="nav-link d-block py-2">Возможности</a>
             <a href="#how-it-works" class="nav-link d-block py-2">Как это работает</a>
             <a href="#clinics" class="nav-link d-block py-2">Для клиник</a>
-            <a href="{{ url_for('auth.login') }}" class="btn btn-nav-login mt-2">Войти</a>
+            {% if current_user.is_authenticated %}
+            <a href="{{ url_for('index') }}" class="btn btn-nav-login mt-2 d-block">В кабинет</a>
+            {% else %}
+            <a href="{{ url_for('auth.login') }}" class="btn btn-nav-login mt-2 d-block">Войти</a>
+            <a href="{{ url_for('auth.register') }}" class="btn btn-nav-login mt-2 d-block">Регистрация</a>
+            {% endif %}
         </div>
     </div>
 </nav>

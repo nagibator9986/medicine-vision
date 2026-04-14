@@ -160,6 +160,23 @@ class TestReviews:
             assert r.rating == 5
             assert r.comment == 'Отличный врач!'
 
+    def test_leave_review_get_renders_form(self, client, app, patient_user, doctor_user, appointment):
+        """GET /patient/reviews/<id> must render the star-picker form (not
+        the reviews list). Regression for the bug where `patient/reviews.html`
+        was rendered without any form UI."""
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            apt.status = 'completed'
+            db.session.commit()
+
+        login(client, 'patient@test.kz')
+        resp = client.get(f'/patient/reviews/{appointment}')
+        assert resp.status_code == 200
+        # The form template includes a star-picker widget and a comment field
+        assert b'star-picker' in resp.data
+        assert b'name="rating"' in resp.data
+        assert b'name="comment"' in resp.data
+
 
 class TestMedicalRecordsPage:
     def test_medical_records_page_loads(self, client, patient_user):

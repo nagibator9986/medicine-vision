@@ -161,6 +161,9 @@ class VideoCall(db.Model):
 
 class Prescription(db.Model):
     __tablename__ = 'prescriptions'
+    __table_args__ = (
+        db.UniqueConstraint('appointment_id', name='uq_prescription_appointment'),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     appointment_id = db.Column(db.Integer, db.ForeignKey('appointments.id'), nullable=False, index=True)

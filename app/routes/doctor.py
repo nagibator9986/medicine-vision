@@ -6,6 +6,7 @@ from functools import wraps
 from flask import (Blueprint, render_template, redirect, url_for, flash,
                    request, abort, current_app)
 from flask_login import login_required, current_user
+from sqlalchemy.exc import IntegrityError
 from werkzeug.utils import secure_filename
 
 from app import db
@@ -257,27 +258,43 @@ def create_prescription(appointment_id):
         flash('Рецепт можно создать только для активного или завершённого приёма.', 'warning')
         return redirect(url_for('doctor.appointments'))
 
-    form = PrescriptionForm()
+    # One prescription per appointment — allow editing the existing one instead
+    # of creating duplicates.
+    existing = appointment.prescription
+    form = PrescriptionForm(obj=existing) if existing else PrescriptionForm()
 
     if form.validate_on_submit():
-        prescription = Prescription(
-            appointment_id=appointment.id,
-            patient_id=appointment.patient_id,
-            doctor_id=current_user.id,
-            diagnosis=form.diagnosis.data,
-            medications=form.medications.data,
-            recommendations=form.recommendations.data,
-        )
-        db.session.add(prescription)
-        db.session.commit()
+        if existing:
+            existing.diagnosis = form.diagnosis.data
+            existing.medications = form.medications.data
+            existing.recommendations = form.recommendations.data
+            flash('Рецепт обновлён.', 'success')
+        else:
+            prescription = Prescription(
+                appointment_id=appointment.id,
+                patient_id=appointment.patient_id,
+                doctor_id=current_user.id,
+                diagnosis=form.diagnosis.data,
+                medications=form.medications.data,
+                recommendations=form.recommendations.data,
+            )
+            db.session.add(prescription)
+            flash('Рецепт успешно создан.', 'success')
 
-        flash('Рецепт успешно создан.', 'success')
+        try:
+            db.session.commit()
+        except IntegrityError:
+            db.session.rollback()
+            flash('Для этого приёма уже существует рецепт.', 'warning')
+            return redirect(url_for('doctor.appointments'))
+
         return redirect(url_for('doctor.appointments'))
 
     return render_template(
         'doctor/prescription.html',
         form=form,
         appointment=appointment,
+        existing=existing,
     )
 
 

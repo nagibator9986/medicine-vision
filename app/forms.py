@@ -2,11 +2,28 @@ import re
 from datetime import date
 
 from flask_wtf import FlaskForm
+from werkzeug.datastructures import FileStorage
 from wtforms import (StringField, PasswordField, TextAreaField, SelectField,
                      DateField, FloatField, IntegerField, BooleanField,
                      TimeField, HiddenField)
 from wtforms.validators import DataRequired, Email, Length, EqualTo, Optional, NumberRange, ValidationError
 from flask_wtf.file import FileField, FileAllowed
+
+
+def _uploaded_extension(field_data):
+    """Return lowercase extension of an uploaded file, or '' if no file was sent.
+
+    Works around a quirk in some Flask-WTF/Werkzeug versions where an empty
+    FileField still produces a FileStorage object — meaning FileAllowed()
+    raises 'file type not allowed' on edit-forms where the user kept the
+    existing file. Callers should treat '' as "nothing was uploaded".
+    """
+    if not isinstance(field_data, FileStorage):
+        return ''
+    filename = field_data.filename or ''
+    if '.' not in filename:
+        return ''
+    return filename.rsplit('.', 1)[-1].lower()
 
 
 class LoginForm(FlaskForm):
@@ -57,11 +74,16 @@ class DoctorForm(FlaskForm):
     experience_years = IntegerField('Опыт (лет)', validators=[Optional(), NumberRange(min=0, max=70)])
     bio = TextAreaField('О враче', validators=[Optional()])
     consultation_price = FloatField('Стоимость консультации', validators=[Optional(), NumberRange(min=0)])
-    avatar = FileField('Фото', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'], 'Только изображения')])
+    avatar = FileField('Фото')
 
     def validate_password(self, field):
         if field.data and not any(ch.isdigit() for ch in field.data):
             raise ValidationError('Пароль должен содержать хотя бы одну цифру.')
+
+    def validate_avatar(self, field):
+        ext = _uploaded_extension(field.data)
+        if ext and ext not in ('jpg', 'jpeg', 'png'):
+            raise ValidationError('Допустимы только изображения (jpg, png).')
 
 
 class ClinicForm(FlaskForm):
@@ -94,7 +116,12 @@ class ClinicForm(FlaskForm):
 
     def validate_working_hours_end(self, field):
         self._validate_time_format(field)
-    logo = FileField('Логотип', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg', 'svg'], 'Только изображения')])
+    logo = FileField('Логотип')
+
+    def validate_logo(self, field):
+        ext = _uploaded_extension(field.data)
+        if ext and ext not in ('jpg', 'jpeg', 'png', 'svg'):
+            raise ValidationError('Допустимы только изображения (jpg, png, svg).')
 
     # Admin user for clinic
     admin_email = StringField('Email администратора', validators=[Optional(), Email()])
@@ -125,17 +152,27 @@ class MedicalRecordForm(FlaskForm):
     ], validators=[DataRequired()])
     title = StringField('Заголовок', validators=[DataRequired(), Length(max=200)])
     content = TextAreaField('Содержание', validators=[Optional()])
-    file = FileField('Файл', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg', 'pdf', 'doc', 'docx'])])
+    file = FileField('Файл')
+
+    def validate_file(self, field):
+        ext = _uploaded_extension(field.data)
+        if ext and ext not in ('jpg', 'jpeg', 'png', 'pdf', 'doc', 'docx'):
+            raise ValidationError('Допустимые форматы: jpg, png, pdf, doc, docx.')
 
 
 class ProfileForm(FlaskForm):
     first_name = StringField('Имя', validators=[DataRequired(), Length(max=64)])
     last_name = StringField('Фамилия', validators=[DataRequired(), Length(max=64)])
     phone = StringField('Телефон', validators=[Optional(), Length(max=20)])
-    avatar = FileField('Фото профиля', validators=[Optional(), FileAllowed(['jpg', 'png', 'jpeg'], 'Только изображения')])
+    avatar = FileField('Фото профиля')
     birth_date = DateField('Дата рождения', validators=[Optional()])
     gender = SelectField('Пол', choices=[('', 'Выберите'), ('male', 'Мужской'), ('female', 'Женский')], validators=[Optional()])
     address = TextAreaField('Адрес', validators=[Optional()])
+
+    def validate_avatar(self, field):
+        ext = _uploaded_extension(field.data)
+        if ext and ext not in ('jpg', 'jpeg', 'png'):
+            raise ValidationError('Допустимы только изображения (jpg, png).')
 
 
 class ReviewForm(FlaskForm):

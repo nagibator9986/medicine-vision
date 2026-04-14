@@ -125,8 +125,19 @@
         border-radius: 18px;
         font-size: .92rem;
         line-height: 1.5;
-        word-break: break-word;
+        /* `overflow-wrap: break-word` only breaks when a single token overflows
+           — keeping normal word boundaries. The old `word-break: break-word`
+           was splitting short Russian words character-by-character. */
+        overflow-wrap: break-word;
+        word-break: normal;
         position: relative;
+        max-width: 100%;
+    }
+
+    /* Preserve newlines in user input (Shift+Enter) without affecting markdown
+       rendering in assistant bubbles. */
+    .message-row.user .message-bubble {
+        white-space: pre-wrap;
     }
 
     .message-row.user .message-bubble {

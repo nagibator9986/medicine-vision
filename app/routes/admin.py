@@ -48,24 +48,45 @@ def save_logo(file):
 
 
 def _wipe_user(user):
-    """Remove all records that reference the given user so it can be hard-deleted."""
-    Review.query.filter(
-        db.or_(Review.patient_id == user.id, Review.doctor_id == user.id)
-    ).delete(synchronize_session=False)
+    """Remove all records that reference the given user so it can be hard-deleted.
+
+    Ordering matters: we must expunge rows that SQLAlchemy will later try to
+    cascade-delete BEFORE issuing the bulk DELETEs — otherwise the session ends up
+    with stale references and raises StaleDataError / FK violations on PostgreSQL.
+
+    Strategy:
+      1. Load every Appointment the user is involved in and delete it through the
+         session so SQLAlchemy's 'all, delete-orphan' cascade removes the attached
+         VideoCall / Prescription / Review consistently.
+      2. Flush to push those DELETEs to the database immediately.
+      3. Bulk-DELETE any orphan rows that still reference the user directly
+         (prescriptions/reviews/medical records where the user is mentioned outside
+         an appointment, notifications, chat messages).
+      4. Flush again so the session is clean before the caller deletes the user.
+    """
+    # --- 1. Delete appointments via the session so cascades fire ---
+    appts = Appointment.query.filter(
+        db.or_(Appointment.patient_id == user.id, Appointment.doctor_id == user.id)
+    ).all()
+    for appt in appts:
+        db.session.delete(appt)
+    db.session.flush()
+
+    # --- 2. Clean up any rows still pointing at the user ---
+    # (Normally these are already gone via the cascade above, but we protect
+    # against data where doctor/patient fields were set without an appointment.)
     Prescription.query.filter(
         db.or_(Prescription.patient_id == user.id, Prescription.doctor_id == user.id)
+    ).delete(synchronize_session=False)
+    Review.query.filter(
+        db.or_(Review.patient_id == user.id, Review.doctor_id == user.id)
     ).delete(synchronize_session=False)
     MedicalRecord.query.filter(
         db.or_(MedicalRecord.patient_id == user.id, MedicalRecord.doctor_id == user.id)
     ).delete(synchronize_session=False)
     Notification.query.filter_by(user_id=user.id).delete(synchronize_session=False)
     ChatMessage.query.filter_by(user_id=user.id).delete(synchronize_session=False)
-    # Appointments — cascades to Prescription / VideoCall / Review via relationships
-    appts = Appointment.query.filter(
-        db.or_(Appointment.patient_id == user.id, Appointment.doctor_id == user.id)
-    ).all()
-    for appt in appts:
-        db.session.delete(appt)
+    db.session.flush()
 
 
 # ---------------------------------------------------------------------------
@@ -230,16 +251,22 @@ def delete_clinic(clinic_id):
     name = clinic.name
 
     try:
-        # Wipe every user tied to this clinic (staff + patients)
+        # Wipe dependent data for every user tied to this clinic. We do NOT delete
+        # the users themselves here — the Clinic.users relationship has
+        # cascade='all, delete-orphan', so `db.session.delete(clinic)` below will
+        # remove them cleanly once their appointments / prescriptions / etc. are gone.
         members = User.query.filter(User.clinic_id == clinic.id).all()
         for member in members:
             _wipe_user(member)
-            db.session.delete(member)
 
-        # Delete any remaining clinic-level data
-        Appointment.query.filter_by(clinic_id=clinic.id).delete(synchronize_session=False)
-        ClinicSpecialization.query.filter_by(clinic_id=clinic.id).delete(synchronize_session=False)
+        # Also wipe any appointments that reference this clinic but whose
+        # participants somehow aren't in `members` (defensive — data drift).
+        stray_appts = Appointment.query.filter_by(clinic_id=clinic.id).all()
+        for appt in stray_appts:
+            db.session.delete(appt)
+        db.session.flush()
 
+        # Finally drop the clinic. Cascade handles users + specializations.
         db.session.delete(clinic)
         db.session.commit()
         flash(f'Клиника "{name}" удалена.', 'warning')

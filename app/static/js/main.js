@@ -60,33 +60,43 @@ document.addEventListener('DOMContentLoaded', function () {
                         '</div>';
                     return;
                 }
+                // Map DB notification type → (CSS class, icon). The API returns
+                // one of info/success/warning/danger from the Notification model.
+                var TYPE_MAP = {
+                    info:    { cls: 'info',    icon: 'fa-info-circle' },
+                    success: { cls: 'message', icon: 'fa-check-circle' },
+                    warning: { cls: 'alert',   icon: 'fa-exclamation-triangle' },
+                    danger:  { cls: 'alert',   icon: 'fa-exclamation-circle' },
+                };
                 var html = '';
                 items.forEach(function (n) {
-                    var iconClass = 'info';
-                    var iconName = 'fa-info-circle';
-                    if (n.type === 'appointment') { iconClass = 'appointment'; iconName = 'fa-calendar-check'; }
-                    else if (n.type === 'message') { iconClass = 'message'; iconName = 'fa-comment'; }
-                    else if (n.type === 'alert') { iconClass = 'alert'; iconName = 'fa-exclamation-triangle'; }
-
+                    var meta = TYPE_MAP[n.type] || TYPE_MAP.info;
                     html +=
-                        '<div class="notification-item' + (n.read ? '' : ' unread') + '" data-id="' + n.id + '">' +
-                            '<div class="notif-icon ' + iconClass + '">' +
-                                '<i class="fas ' + iconName + '"></i>' +
+                        '<div class="notification-item' + (n.read ? '' : ' unread') + '" ' +
+                             'data-id="' + n.id + '" ' +
+                             'data-link="' + (n.link ? escapeHtml(n.link) : '') + '">' +
+                            '<div class="notif-icon ' + meta.cls + '">' +
+                                '<i class="fas ' + meta.icon + '"></i>' +
                             '</div>' +
                             '<div class="notif-text">' +
-                                '<p>' + escapeHtml(n.message) + '</p>' +
+                                '<p>' + escapeHtml(n.title || '') + '</p>' +
+                                '<p class="text-muted small mb-0">' + escapeHtml(n.message) + '</p>' +
                                 '<div class="notif-time">' + formatDateRu(n.created_at) + '</div>' +
                             '</div>' +
                         '</div>';
                 });
                 notificationList.innerHTML = html;
 
-                // Click handler to mark individual notification as read
+                // Click handler: mark as read, then navigate to link if present
                 notificationList.querySelectorAll('.notification-item').forEach(function (item) {
                     item.addEventListener('click', function () {
                         var id = this.getAttribute('data-id');
-                        markNotificationRead(id);
+                        var link = this.getAttribute('data-link');
                         this.classList.remove('unread');
+                        markNotificationRead(id);
+                        if (link) {
+                            window.location.href = link;
+                        }
                     });
                 });
             })

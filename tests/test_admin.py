@@ -1,6 +1,11 @@
 """Tests for admin routes — dashboard, clinics, users, analytics."""
+from datetime import datetime, timedelta, timezone
+
 from app import db
-from app.models import User, Clinic, Notification
+from app.models import (
+    User, Clinic, Notification, Appointment, VideoCall, Prescription,
+    MedicalRecord, Review, ChatMessage,
+)
 from tests.conftest import login
 
 
@@ -131,6 +136,112 @@ class TestDeleteUser:
         assert resp.status_code == 200
         with app.app_context():
             assert db.session.get(User, superadmin) is not None
+
+    def test_delete_user_with_full_dependency_graph(
+        self, client, app, superadmin, clinic, doctor_user, patient_user
+    ):
+        """Regression: wiping a user that has prescription + videocall + review
+        + medical record + notification + chat message used to crash with
+        StaleDataError because _wipe_user mixed bulk DELETEs (synchronize_session=False)
+        with session-level cascades. Deleting the full graph must succeed."""
+        with app.app_context():
+            apt = Appointment(
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                clinic_id=clinic,
+                scheduled_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1),
+                status='completed',
+            )
+            db.session.add(apt)
+            db.session.flush()
+
+            db.session.add(VideoCall(
+                appointment_id=apt.id,
+                room_id='test-room-wipe',
+                transcription='test',
+                status='ended',
+            ))
+            db.session.add(Prescription(
+                appointment_id=apt.id,
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                diagnosis='test',
+            ))
+            db.session.add(Review(
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                appointment_id=apt.id,
+                rating=5,
+                comment='ok',
+            ))
+            db.session.add(MedicalRecord(
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                record_type='note',
+                title='test',
+                content='test',
+            ))
+            db.session.add(Notification(
+                user_id=patient_user,
+                title='test',
+                message='test',
+            ))
+            db.session.add(ChatMessage(
+                user_id=patient_user,
+                role='user',
+                content='test',
+            ))
+            db.session.commit()
+
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/users/{patient_user}/delete', follow_redirects=True)
+        assert resp.status_code == 200
+
+        with app.app_context():
+            assert db.session.get(User, patient_user) is None
+            # Everything tied to the patient should be gone
+            assert Appointment.query.filter_by(patient_id=patient_user).count() == 0
+            assert Prescription.query.filter_by(patient_id=patient_user).count() == 0
+            assert Review.query.filter_by(patient_id=patient_user).count() == 0
+            assert MedicalRecord.query.filter_by(patient_id=patient_user).count() == 0
+            assert Notification.query.filter_by(user_id=patient_user).count() == 0
+            assert ChatMessage.query.filter_by(user_id=patient_user).count() == 0
+
+
+class TestDeleteClinicFullGraph:
+    def test_delete_clinic_with_full_dependency_graph(
+        self, client, app, superadmin, clinic, doctor_user, patient_user
+    ):
+        """Regression: deleting a clinic used to crash when users had prescriptions
+        / videocalls / reviews because _wipe_user's bulk deletes conflicted with
+        the cascade on db.session.delete(clinic)."""
+        with app.app_context():
+            apt = Appointment(
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                clinic_id=clinic,
+                scheduled_time=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=1),
+                status='completed',
+            )
+            db.session.add(apt)
+            db.session.flush()
+
+            db.session.add(VideoCall(appointment_id=apt.id, room_id='clinic-del-room', status='ended'))
+            db.session.add(Prescription(appointment_id=apt.id, patient_id=patient_user,
+                                         doctor_id=doctor_user, diagnosis='d'))
+            db.session.add(Review(patient_id=patient_user, doctor_id=doctor_user,
+                                   appointment_id=apt.id, rating=5))
+            db.session.commit()
+
+        login(client, 'admin@test.kz')
+        resp = client.post(f'/admin/clinics/{clinic}/delete', follow_redirects=True)
+        assert resp.status_code == 200
+
+        with app.app_context():
+            assert db.session.get(Clinic, clinic) is None
+            assert db.session.get(User, patient_user) is None
+            assert db.session.get(User, doctor_user) is None
+            assert Appointment.query.filter_by(clinic_id=clinic).count() == 0
 
 
 class TestAdminProfile:

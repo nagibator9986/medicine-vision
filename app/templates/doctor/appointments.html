@@ -96,9 +96,19 @@
                                         </a>
                                     {% endif %}
                                     {% if appointment.status in ['in_progress', 'awaiting_report', 'completed'] %}
-                                        <a href="{{ url_for('doctor.create_prescription', appointment_id=appointment.id) }}" class="btn btn-outline-primary" title="Назначение">
-                                            <i class="fas fa-prescription"></i>
-                                        </a>
+                                        {% if appointment.prescription %}
+                                            <a href="{{ url_for('doctor.create_prescription', appointment_id=appointment.id) }}"
+                                               class="btn btn-success"
+                                               title="Редактировать рецепт">
+                                                <i class="fas fa-file-prescription"></i>
+                                            </a>
+                                        {% else %}
+                                            <a href="{{ url_for('doctor.create_prescription', appointment_id=appointment.id) }}"
+                                               class="btn btn-outline-primary"
+                                               title="Создать рецепт">
+                                                <i class="fas fa-prescription"></i>
+                                            </a>
+                                        {% endif %}
                                     {% endif %}
                                     {% if appointment.status == 'awaiting_report' %}
                                         <form method="POST" action="{{ url_for('doctor.update_appointment_status', appointment_id=appointment.id) }}" class="d-inline">

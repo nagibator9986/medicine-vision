@@ -1,0 +1,183 @@
+{% extends 'base.html' %}
+
+{% block title %}Оставить отзыв{% endblock %}
+
+{% block extra_css %}
+<style>
+    .review-form-card {
+        border-radius: 16px;
+        border: none;
+    }
+    .doctor-info-row {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 1rem;
+        background: linear-gradient(135deg, #f8f9ff 0%, #eef1ff 100%);
+        border-radius: 12px;
+        margin-bottom: 1.5rem;
+    }
+    .doctor-avatar-circle {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #667eea, #764ba2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-size: 1.6rem;
+        flex-shrink: 0;
+    }
+    .star-picker {
+        display: flex;
+        flex-direction: row-reverse;
+        justify-content: center;
+        gap: 0.5rem;
+        margin: 1rem 0 1.5rem;
+    }
+    .star-picker input[type="radio"] {
+        display: none;
+    }
+    .star-picker label {
+        font-size: 2.5rem;
+        color: #e0e0e0;
+        cursor: pointer;
+        transition: color 0.15s ease, transform 0.15s ease;
+    }
+    .star-picker label:hover,
+    .star-picker label:hover ~ label,
+    .star-picker input[type="radio"]:checked ~ label {
+        color: #fbbf24;
+        transform: scale(1.05);
+    }
+    .rating-label {
+        text-align: center;
+        font-weight: 600;
+        color: #6b7280;
+        min-height: 1.5rem;
+        margin-bottom: 0.5rem;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-7">
+            <div class="mb-4">
+                <a href="{{ url_for('patient.reviews') }}" class="text-decoration-none text-muted small">
+                    <i class="fas fa-arrow-left me-1"></i>К моим отзывам
+                </a>
+                <h2 class="mt-2 mb-1"><i class="fas fa-star text-warning me-2"></i>Оставить отзыв</h2>
+                <p class="text-muted mb-0">Поделитесь своим мнением о приёме</p>
+            </div>
+
+            <div class="card review-form-card shadow-sm">
+                <div class="card-body p-4">
+                    <!-- Doctor info -->
+                    <div class="doctor-info-row">
+                        <div class="doctor-avatar-circle">
+                            <i class="fas fa-user-md"></i>
+                        </div>
+                        <div>
+                            <h5 class="mb-0 fw-bold">{{ appointment.doctor.full_name }}</h5>
+                            <small class="text-muted">{{ appointment.doctor.specialization or 'Врач' }}</small>
+                            <div class="small text-muted">
+                                <i class="far fa-calendar me-1"></i>
+                                Приём {{ appointment.scheduled_time.strftime('%d.%m.%Y в %H:%M') }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <form method="POST" novalidate>
+                        {{ form.hidden_tag() }}
+
+                        <label class="form-label fw-semibold d-block text-center">Ваша оценка</label>
+
+                        <div class="rating-label" id="ratingLabel">Нажмите на звёзды</div>
+
+                        <!-- Star picker (reversed order for CSS hover trick) -->
+                        <div class="star-picker" id="starPicker">
+                            <input type="radio" id="star5" name="rating" value="5">
+                            <label for="star5" data-value="5"><i class="fas fa-star"></i></label>
+
+                            <input type="radio" id="star4" name="rating" value="4">
+                            <label for="star4" data-value="4"><i class="fas fa-star"></i></label>
+
+                            <input type="radio" id="star3" name="rating" value="3">
+                            <label for="star3" data-value="3"><i class="fas fa-star"></i></label>
+
+                            <input type="radio" id="star2" name="rating" value="2">
+                            <label for="star2" data-value="2"><i class="fas fa-star"></i></label>
+
+                            <input type="radio" id="star1" name="rating" value="1">
+                            <label for="star1" data-value="1"><i class="fas fa-star"></i></label>
+                        </div>
+
+                        {% if form.rating.errors %}
+                            {% for error in form.rating.errors %}
+                            <div class="text-danger small text-center mb-2">{{ error }}</div>
+                            {% endfor %}
+                        {% endif %}
+
+                        <div class="mb-3">
+                            <label for="comment" class="form-label fw-semibold">Комментарий (необязательно)</label>
+                            {{ form.comment(class="form-control", rows="4",
+                                placeholder="Расскажите о качестве приёма, внимательности врача, результатах...") }}
+                        </div>
+
+                        <div class="d-flex justify-content-end gap-2">
+                            <a href="{{ url_for('patient.reviews') }}" class="btn btn-outline-secondary">
+                                Отмена
+                            </a>
+                            <button type="submit" class="btn btn-primary px-4">
+                                <i class="fas fa-paper-plane me-1"></i>Отправить отзыв
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function() {
+    const RATING_LABELS = {
+        1: 'Очень плохо',
+        2: 'Плохо',
+        3: 'Нормально',
+        4: 'Хорошо',
+        5: 'Отлично',
+    };
+
+    const starPicker = document.getElementById('starPicker');
+    const ratingLabel = document.getElementById('ratingLabel');
+    const labels = starPicker.querySelectorAll('label');
+
+    labels.forEach(function(label) {
+        label.addEventListener('mouseenter', function() {
+            const val = this.getAttribute('data-value');
+            ratingLabel.textContent = RATING_LABELS[val] || '';
+        });
+
+        label.addEventListener('click', function() {
+            const val = this.getAttribute('data-value');
+            ratingLabel.textContent = RATING_LABELS[val] || '';
+        });
+    });
+
+    starPicker.addEventListener('mouseleave', function() {
+        const checked = starPicker.querySelector('input[type="radio"]:checked');
+        if (checked) {
+            ratingLabel.textContent = RATING_LABELS[checked.value] || '';
+        } else {
+            ratingLabel.textContent = 'Нажмите на звёзды';
+        }
+    });
+})();
+</script>
+{% endblock %}

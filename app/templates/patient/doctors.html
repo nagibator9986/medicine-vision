@@ -13,6 +13,17 @@
         transform: translateY(-6px);
         box-shadow: 0 0.75rem 2rem rgba(0,0,0,0.12) !important;
     }
+    /* Make card body a flex column so the "Записаться" button always sits at
+       the bottom regardless of how much content (specialization, experience,
+       rating) is above it. This keeps cards visually consistent between
+       doctors with and without avatars. */
+    .doctor-card .card-body {
+        display: flex;
+        flex-direction: column;
+    }
+    .doctor-card .book-btn-wrap {
+        margin-top: auto;
+    }
     .doctor-avatar {
         width: 90px;
         height: 90px;
@@ -122,9 +133,9 @@
                     <p class="text-primary mb-2">{{ doctor.specialization or 'Врач' }}</p>
 
                     <!-- Experience -->
-                    {% if doctor.experience %}
+                    {% if doctor.experience_years %}
                     <p class="text-muted small mb-2">
-                        <i class="fas fa-briefcase me-1"></i>Стаж: {{ doctor.experience }} лет
+                        <i class="fas fa-briefcase me-1"></i>Стаж: {{ doctor.experience_years }} лет
                     </p>
                     {% endif %}
 
@@ -139,24 +150,27 @@
 
                     <!-- Rating -->
                     <div class="star-rating mb-3">
-                        {% set rating = doctor.avg_rating|default(0)|float %}
+                        {% set rating = doctor.received_reviews|length %}
+                        {% set avg = (doctor.received_reviews | sum(attribute='rating') / rating) if rating > 0 else 0 %}
                         {% for i in range(1, 6) %}
-                            {% if i <= rating|int %}
+                            {% if i <= avg|int %}
                                 <i class="fas fa-star"></i>
-                            {% elif i - rating < 1 and i - rating > 0 %}
+                            {% elif i - avg < 1 and i - avg > 0 %}
                                 <i class="fas fa-star-half-alt"></i>
                             {% else %}
                                 <i class="far fa-star"></i>
                             {% endif %}
                         {% endfor %}
-                        <span class="text-muted small ms-1">({{ doctor.reviews_count|default(0) }})</span>
+                        <span class="text-muted small ms-1">({{ rating }})</span>
                     </div>
 
                     <!-- Book Button -->
-                    <a href="{{ url_for('patient.book_appointment', doctor_id=doctor.id) }}"
-                       class="btn btn-primary w-100">
-                        <i class="fas fa-calendar-plus me-1"></i>Записаться
-                    </a>
+                    <div class="book-btn-wrap">
+                        <a href="{{ url_for('patient.book_appointment', doctor_id=doctor.id) }}"
+                           class="btn btn-primary w-100">
+                            <i class="fas fa-calendar-plus me-1"></i>Записаться
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>

@@ -197,6 +197,66 @@
             </div>
         </div>
 
+        <!-- Video call transcriptions -->
+        {% set transcripts = [] %}
+        {% for a in appointment_history %}
+            {% if a.videocall and a.videocall.transcription %}
+                {% set _ = transcripts.append(a) %}
+            {% endif %}
+        {% endfor %}
+        {% if transcripts %}
+        <div class="col-12">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-white">
+                    <h5 class="mb-0"><i class="fas fa-closed-captioning me-2 text-primary"></i>Транскрипции видеоконсультаций</h5>
+                </div>
+                <div class="card-body">
+                    <div class="accordion" id="transcriptAccordion">
+                        {% for appointment in appointment_history %}
+                            {% if appointment.videocall and appointment.videocall.transcription %}
+                            <div class="accordion-item">
+                                <h2 class="accordion-header">
+                                    <button class="accordion-button collapsed" type="button"
+                                            data-bs-toggle="collapse"
+                                            data-bs-target="#transcript{{ appointment.id }}">
+                                        <i class="far fa-calendar me-2 text-muted"></i>
+                                        <span class="fw-semibold">
+                                            {{ appointment.scheduled_time.strftime('%d.%m.%Y %H:%M') }}
+                                        </span>
+                                        {% if appointment.videocall.duration_seconds %}
+                                        <span class="ms-3 text-muted small">
+                                            <i class="far fa-clock me-1"></i>
+                                            {{ (appointment.videocall.duration_seconds // 60) }} мин
+                                        </span>
+                                        {% endif %}
+                                    </button>
+                                </h2>
+                                <div id="transcript{{ appointment.id }}" class="accordion-collapse collapse"
+                                     data-bs-parent="#transcriptAccordion">
+                                    <div class="accordion-body">
+                                        {% if appointment.videocall.summary %}
+                                        <div class="mb-3">
+                                            <div class="fw-semibold text-primary mb-1">
+                                                <i class="fas fa-magic me-1"></i>AI-резюме
+                                            </div>
+                                            <div class="p-2 bg-light rounded small" style="white-space: pre-wrap;">{{ appointment.videocall.summary }}</div>
+                                        </div>
+                                        {% endif %}
+                                        <div class="fw-semibold text-muted mb-1">
+                                            <i class="fas fa-file-alt me-1"></i>Полная транскрипция
+                                        </div>
+                                        <div class="p-2 border rounded small" style="white-space: pre-wrap; max-height: 400px; overflow-y: auto;">{{ appointment.videocall.transcription }}</div>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endif %}
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Prescriptions from history -->
         <div class="col-lg-5">
             <div class="card shadow-sm">

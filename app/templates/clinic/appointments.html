@@ -22,8 +22,9 @@
                     <label class="form-label fw-semibold">Статус</label>
                     <select name="status" class="form-select">
                         <option value="">Все статусы</option>
-                        <option value="pending" {{ 'selected' if request.args.get('status') == 'pending' }}>Ожидает</option>
-                        <option value="confirmed" {{ 'selected' if request.args.get('status') == 'confirmed' }}>Подтверждена</option>
+                        <option value="scheduled" {{ 'selected' if request.args.get('status') == 'scheduled' }}>Запланирована</option>
+                        <option value="in_progress" {{ 'selected' if request.args.get('status') == 'in_progress' }}>В процессе</option>
+                        <option value="awaiting_report" {{ 'selected' if request.args.get('status') == 'awaiting_report' }}>Ожидает отчёт</option>
                         <option value="completed" {{ 'selected' if request.args.get('status') == 'completed' }}>Завершена</option>
                         <option value="cancelled" {{ 'selected' if request.args.get('status') == 'cancelled' }}>Отменена</option>
                     </select>
@@ -68,11 +69,11 @@
                             <td class="ps-4">
                                 <div>
                                     <i class="far fa-calendar me-1 text-muted"></i>
-                                    {{ appointment.date.strftime('%d.%m.%Y') if appointment.date else '' }}
+                                    {{ appointment.scheduled_time.strftime('%d.%m.%Y') if appointment.scheduled_time else '—' }}
                                 </div>
                                 <small class="text-muted">
                                     <i class="far fa-clock me-1"></i>
-                                    {{ appointment.time_slot.strftime('%H:%M') if appointment.time_slot else '--:--' }}
+                                    {{ appointment.scheduled_time.strftime('%H:%M') if appointment.scheduled_time else '--:--' }}
                                 </small>
                             </td>
                             <td>
@@ -93,16 +94,20 @@
                                 </div>
                             </td>
                             <td>
-                                {% if appointment.status == 'confirmed' %}
-                                    <span class="badge bg-success bg-opacity-10 text-success">
-                                        <i class="fas fa-check-circle me-1"></i>Подтверждена
+                                {% if appointment.status == 'scheduled' %}
+                                    <span class="badge bg-primary bg-opacity-10 text-primary">
+                                        <i class="fas fa-clock me-1"></i>Запланирована
                                     </span>
-                                {% elif appointment.status == 'pending' %}
+                                {% elif appointment.status == 'in_progress' %}
                                     <span class="badge bg-warning bg-opacity-10 text-warning">
-                                        <i class="fas fa-clock me-1"></i>Ожидает
+                                        <i class="fas fa-spinner me-1"></i>В процессе
+                                    </span>
+                                {% elif appointment.status == 'awaiting_report' %}
+                                    <span class="badge bg-opacity-10" style="color:#f97316; background-color:rgba(249,115,22,.1);">
+                                        <i class="fas fa-file-alt me-1"></i>Ожидает отчёт
                                     </span>
                                 {% elif appointment.status == 'completed' %}
-                                    <span class="badge bg-info bg-opacity-10 text-info">
+                                    <span class="badge bg-success bg-opacity-10 text-success">
                                         <i class="fas fa-check-double me-1"></i>Завершена
                                     </span>
                                 {% elif appointment.status == 'cancelled' %}
@@ -114,37 +119,92 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <div class="dropdown">
-                                    <button class="btn btn-sm btn-outline-secondary" data-bs-toggle="dropdown">
-                                        <i class="fas fa-ellipsis-v"></i>
-                                    </button>
-                                    <ul class="dropdown-menu dropdown-menu-end">
-                                        {% if appointment.status == 'pending' %}
-                                        <li>
-                                            <a class="dropdown-item text-success"
-                                               href="{{ url_for('clinic.appointments') }}">
-                                                <i class="fas fa-check me-2"></i>Подтвердить
-                                            </a>
-                                        </li>
-                                        {% endif %}
-                                        {% if appointment.status in ['pending', 'confirmed'] %}
-                                        <li>
-                                            <a class="dropdown-item text-danger"
-                                               href="{{ url_for('clinic.appointments') }}">
-                                                <i class="fas fa-times me-2"></i>Отменить
-                                            </a>
-                                        </li>
-                                        {% endif %}
-                                        <li>
-                                            <a class="dropdown-item"
-                                               href="{{ url_for('clinic.appointments') }}">
-                                                <i class="fas fa-eye me-2"></i>Подробнее
-                                            </a>
-                                        </li>
-                                    </ul>
-                                </div>
+                                <button type="button"
+                                        class="btn btn-sm btn-outline-primary"
+                                        data-bs-toggle="modal"
+                                        data-bs-target="#apptModal{{ appointment.id }}">
+                                    <i class="fas fa-eye me-1"></i>Подробнее
+                                </button>
                             </td>
                         </tr>
+
+                        <!-- Details modal for this appointment -->
+                        <div class="modal fade" id="apptModal{{ appointment.id }}" tabindex="-1" aria-hidden="true">
+                            <div class="modal-dialog modal-lg modal-dialog-centered">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">
+                                            <i class="fas fa-calendar-check text-primary me-2"></i>
+                                            Запись №{{ appointment.id }}
+                                        </h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+                                    </div>
+                                    <div class="modal-body">
+                                        <div class="row g-3">
+                                            <div class="col-md-6">
+                                                <div class="text-muted small">Дата и время</div>
+                                                <div class="fw-semibold">
+                                                    {{ appointment.scheduled_time.strftime('%d.%m.%Y %H:%M') if appointment.scheduled_time else '—' }}
+                                                </div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="text-muted small">Длительность</div>
+                                                <div class="fw-semibold">{{ appointment.duration_minutes or 30 }} мин</div>
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="text-muted small">Пациент</div>
+                                                <div class="fw-semibold">{{ appointment.patient.full_name }}</div>
+                                                <div class="small text-muted">{{ appointment.patient.email }}</div>
+                                                {% if appointment.patient.phone %}
+                                                <div class="small text-muted">{{ appointment.patient.phone }}</div>
+                                                {% endif %}
+                                            </div>
+                                            <div class="col-md-6">
+                                                <div class="text-muted small">Врач</div>
+                                                <div class="fw-semibold">{{ appointment.doctor.full_name }}</div>
+                                                <div class="small text-muted">{{ appointment.doctor.specialization or 'Врач' }}</div>
+                                            </div>
+                                            {% if appointment.symptoms %}
+                                            <div class="col-12">
+                                                <div class="text-muted small">Симптомы / жалобы</div>
+                                                <div class="p-2 bg-light rounded">{{ appointment.symptoms }}</div>
+                                            </div>
+                                            {% endif %}
+                                            {% if appointment.notes %}
+                                            <div class="col-12">
+                                                <div class="text-muted small">Заметки врача</div>
+                                                <div class="p-2 bg-light rounded">{{ appointment.notes }}</div>
+                                            </div>
+                                            {% endif %}
+                                            {% if appointment.prescription %}
+                                            <div class="col-12">
+                                                <div class="text-muted small mb-1">
+                                                    <i class="fas fa-prescription me-1"></i>Рецепт
+                                                </div>
+                                                <div class="p-2 border rounded">
+                                                    <div><strong>Диагноз:</strong> {{ appointment.prescription.diagnosis or '—' }}</div>
+                                                    {% if appointment.prescription.medications %}
+                                                    <div class="mt-1"><strong>Назначения:</strong> {{ appointment.prescription.medications }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            {% endif %}
+                                            {% if appointment.videocall and appointment.videocall.summary %}
+                                            <div class="col-12">
+                                                <div class="text-muted small mb-1">
+                                                    <i class="fas fa-closed-captioning me-1"></i>Резюме видеоконсультации
+                                                </div>
+                                                <div class="p-2 border rounded small" style="white-space: pre-wrap;">{{ appointment.videocall.summary }}</div>
+                                            </div>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                         {% endfor %}
                     </tbody>
                 </table>

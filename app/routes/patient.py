@@ -510,16 +510,6 @@ def leave_review(appointment_id):
 
     if form.validate_on_submit():
         rating = int(form.rating.data)
-        if rating < 1 or rating > 5:
-            flash('Оценка должна быть от 1 до 5.', 'danger')
-            return render_template(
-                'patient/reviews.html',
-                form=form,
-                appointment=appointment,
-                pending_reviews=[],
-                my_reviews=[],
-            )
-
         review = Review(
             patient_id=current_user.id,
             doctor_id=appointment.doctor_id,
@@ -542,11 +532,9 @@ def leave_review(appointment_id):
         return redirect(url_for('patient.reviews'))
 
     return render_template(
-        'patient/reviews.html',
+        'patient/leave_review.html',
         form=form,
         appointment=appointment,
-        pending_reviews=[],
-        my_reviews=[],
     )
 
 

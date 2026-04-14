@@ -69,6 +69,32 @@ class TestCreatePrescription:
             assert p.patient_id == patient_user
             assert p.doctor_id == doctor_user
 
+    def test_second_prescription_updates_existing(self, client, app, doctor_user, appointment):
+        """Regression: the prescription form used to allow creating unlimited
+        duplicates. Now submitting twice must edit the existing row — exactly
+        one prescription per appointment."""
+        with app.app_context():
+            a = db.session.get(Appointment, appointment)
+            a.status = 'awaiting_report'
+            db.session.commit()
+        login(client, 'doctor@test.kz')
+        client.post(f'/doctor/appointments/{appointment}/prescription', data={
+            'diagnosis': 'First diagnosis',
+            'medications': 'Med A',
+            'recommendations': '',
+        }, follow_redirects=True)
+        client.post(f'/doctor/appointments/{appointment}/prescription', data={
+            'diagnosis': 'Updated diagnosis',
+            'medications': 'Med B',
+            'recommendations': '',
+        }, follow_redirects=True)
+
+        with app.app_context():
+            rows = Prescription.query.filter_by(appointment_id=appointment).all()
+            assert len(rows) == 1
+            assert rows[0].diagnosis == 'Updated diagnosis'
+            assert rows[0].medications == 'Med B'
+
     def test_prescription_wrong_doctor(self, client, app, patient_user, appointment):
         """A different doctor should not be able to create prescription."""
         with app.app_context():
