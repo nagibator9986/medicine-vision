@@ -25,6 +25,10 @@ def room(room_id):
     if current_user.id not in (appointment.doctor_id, appointment.patient_id):
         abort(403)
 
+    # If call ended and has transcription/summary, show the summary page instead
+    if videocall.status == 'ended' and (videocall.transcription or videocall.summary):
+        return render_template('videocall/summary.html', videocall=videocall, appointment=appointment)
+
     call = {
         'room_id': videocall.room_id,
         'appointment_id': videocall.appointment_id,
@@ -110,6 +114,11 @@ def transcribe(room_id):
     data = request.get_json()
     if not data or not data.get('transcription'):
         return jsonify({'error': 'Текст транскрипции отсутствует'}), 400
+
+    # Skip if transcription was already saved (prevents duplicate notifications
+    # when both participants end the call and send transcription)
+    if videocall.transcription:
+        return jsonify({'status': 'already_saved', 'summary': videocall.summary})
 
     transcription_text = data['transcription'][:50000]  # limit length
     videocall.transcription = transcription_text

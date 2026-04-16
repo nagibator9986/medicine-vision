@@ -160,10 +160,18 @@ document.addEventListener('DOMContentLoaded', function () {
 
     document.querySelectorAll('a[href^="#"]').forEach(function (anchor) {
         anchor.addEventListener('click', function (e) {
-            var target = document.querySelector(this.getAttribute('href'));
-            if (target) {
-                e.preventDefault();
-                target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            var href = this.getAttribute('href');
+            // Skip bare "#" links and Bootstrap data-bs-* controlled elements
+            if (!href || href === '#' || href.length < 2) return;
+            if (this.hasAttribute('data-bs-toggle') || this.hasAttribute('data-bs-dismiss')) return;
+            try {
+                var target = document.querySelector(href);
+                if (target) {
+                    e.preventDefault();
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            } catch (err) {
+                // Invalid selector — ignore
             }
         });
     });

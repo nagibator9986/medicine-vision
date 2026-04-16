@@ -396,3 +396,20 @@ def profile():
         return redirect(url_for('doctor.profile'))
 
     return render_template('doctor/profile.html', form=form)
+
+
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+@doctor.route('/notifications')
+@login_required
+@doctor_required
+def notifications():
+    all_notifications = (
+        Notification.query
+        .filter_by(user_id=current_user.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+    return render_template('doctor/notifications.html', notifications=all_notifications)

@@ -212,12 +212,6 @@ def edit_clinic(clinic_id):
     clinic = db.session.get(Clinic, clinic_id) or abort(404)
     form = ClinicForm(obj=clinic)
 
-    # Remove admin fields — they are only needed when creating a new clinic
-    del form.admin_email
-    del form.admin_password
-    del form.admin_first_name
-    del form.admin_last_name
-
     if form.validate_on_submit():
         clinic.name = form.name.data
         clinic.description = form.description.data
