@@ -9,8 +9,8 @@ from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 
 from app import db
-from app.models import User, Clinic, Appointment, VideoCall, ClinicSpecialization, Review
-from app.forms import DoctorForm, ClinicForm
+from app.models import User, Clinic, Appointment, VideoCall, ClinicSpecialization, Review, Notification
+from app.forms import DoctorForm, ClinicForm, ProfileForm
 
 clinic = Blueprint('clinic', __name__)
 
@@ -70,10 +70,20 @@ def dashboard():
         clinic_id=clinic_obj.id, role='doctor', is_active=True
     ).count()
 
+    # Count patients: those assigned to this clinic OR who have appointments here
+    patients_by_clinic = db.session.query(User.id).filter(
+        User.clinic_id == clinic_obj.id, User.role == 'patient'
+    )
+    patients_by_appointment = (
+        db.session.query(Appointment.patient_id)
+        .filter(Appointment.clinic_id == clinic_obj.id)
+    )
     patients_count = (
         db.session.query(User.id)
-        .join(Appointment, Appointment.patient_id == User.id)
-        .filter(Appointment.clinic_id == clinic_obj.id)
+        .filter(db.or_(
+            User.id.in_(patients_by_clinic),
+            User.id.in_(patients_by_appointment),
+        ))
         .distinct()
         .count()
     )
@@ -398,3 +408,47 @@ def statistics():
         avg_rating=avg_rating,
         top_doctors=top_doctors,
     )
+
+
+# ---------------------------------------------------------------------------
+# Profile
+# ---------------------------------------------------------------------------
+
+@clinic.route('/profile', methods=['GET', 'POST'])
+@login_required
+@clinic_admin_required
+def profile():
+    form = ProfileForm(obj=current_user)
+
+    if form.validate_on_submit():
+        current_user.first_name = form.first_name.data.strip()
+        current_user.last_name = form.last_name.data.strip()
+        current_user.phone = form.phone.data.strip() if form.phone.data else None
+
+        if form.avatar.data and getattr(form.avatar.data, 'filename', ''):
+            saved = save_avatar(form.avatar.data)
+            if saved:
+                current_user.avatar = saved
+
+        db.session.commit()
+        flash('Профиль обновлён.', 'success')
+        return redirect(url_for('clinic.profile'))
+
+    return render_template('clinic/profile.html', form=form)
+
+
+# ---------------------------------------------------------------------------
+# Notifications
+# ---------------------------------------------------------------------------
+
+@clinic.route('/notifications')
+@login_required
+@clinic_admin_required
+def notifications():
+    all_notifications = (
+        Notification.query
+        .filter_by(user_id=current_user.id)
+        .order_by(Notification.created_at.desc())
+        .all()
+    )
+    return render_template('clinic/notifications.html', notifications=all_notifications)

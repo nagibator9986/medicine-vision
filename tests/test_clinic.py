@@ -1,7 +1,7 @@
 """Tests for clinic admin routes — dashboard, doctors, appointments, statistics."""
 from datetime import datetime, timezone, timedelta
 from app import db
-from app.models import User, Appointment
+from app.models import User, Appointment, Notification
 from tests.conftest import login
 
 
@@ -124,4 +124,34 @@ class TestClinicSettings:
     def test_settings_loads(self, client, clinic_admin_user):
         login(client, 'clinicadmin@test.kz')
         resp = client.get('/clinic/settings')
+        assert resp.status_code == 200
+
+
+class TestClinicProfile:
+    def test_profile_loads(self, client, clinic_admin_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.get('/clinic/profile')
+        assert resp.status_code == 200
+
+    def test_profile_update(self, client, app, clinic_admin_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.post('/clinic/profile', data={
+            'first_name': 'UpdatedAdmin',
+            'last_name': 'Test',
+        }, follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            u = db.session.get(User, clinic_admin_user)
+            assert u.first_name == 'UpdatedAdmin'
+
+    def test_profile_requires_clinic_admin(self, client, patient_user):
+        login(client, 'patient@test.kz')
+        resp = client.get('/clinic/profile')
+        assert resp.status_code == 403
+
+
+class TestClinicNotifications:
+    def test_notifications_page_loads(self, client, clinic_admin_user):
+        login(client, 'clinicadmin@test.kz')
+        resp = client.get('/clinic/notifications')
         assert resp.status_code == 200

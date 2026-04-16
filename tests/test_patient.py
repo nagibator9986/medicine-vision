@@ -1,7 +1,7 @@
 """Tests for patient routes — dashboard, booking, health tracker, reviews."""
 from datetime import datetime, date, timezone, timedelta
 from app import db
-from app.models import Appointment, MedicalRecord, Notification, Review, Prescription
+from app.models import User, Clinic, Appointment, MedicalRecord, Notification, Review, Prescription
 from tests.conftest import login
 
 
@@ -225,6 +225,83 @@ class TestWeekendSlots:
         assert resp.status_code == 200
         data = resp.get_json()
         assert data['slots'] == []
+
+
+class TestCancelAppointment:
+    def test_cancel_scheduled_appointment(self, client, app, patient_user, appointment):
+        login(client, 'patient@test.kz')
+        resp = client.post(f'/patient/appointments/{appointment}/cancel', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            assert apt.status == 'cancelled'
+
+    def test_cannot_cancel_completed_appointment(self, client, app, patient_user, appointment):
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            apt.status = 'completed'
+            db.session.commit()
+        login(client, 'patient@test.kz')
+        resp = client.post(f'/patient/appointments/{appointment}/cancel', follow_redirects=True)
+        assert resp.status_code == 200
+        with app.app_context():
+            apt = db.session.get(Appointment, appointment)
+            assert apt.status == 'completed'  # unchanged
+
+
+class TestDoubleBooking:
+    def test_cannot_double_book_same_slot(self, client, app, patient_user, doctor_user, clinic):
+        """Booking a slot already taken by another appointment should fail."""
+        from datetime import date as _date
+        d = _date.today() + timedelta(days=1)
+        while d.isoweekday() > 5:
+            d += timedelta(days=1)
+
+        with app.app_context():
+            scheduled_dt = datetime.combine(d, datetime.min.time()).replace(hour=10, minute=0)
+            apt = Appointment(
+                patient_id=patient_user,
+                doctor_id=doctor_user,
+                clinic_id=clinic,
+                scheduled_time=scheduled_dt,
+                status='scheduled',
+            )
+            db.session.add(apt)
+            db.session.commit()
+
+        login(client, 'patient@test.kz')
+        # Verify the booked slot is excluded from available slots
+        resp = client.get(f'/patient/api/time-slots?doctor_id={doctor_user}&date={d.isoformat()}')
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert '10:00' not in data['slots']
+
+
+class TestClinicIsolation:
+    def test_patient_cannot_see_other_clinic_doctors(self, client, app, patient_user, clinic):
+        """Patient from clinic A should not see doctors from clinic B."""
+        with app.app_context():
+            clinic_b = Clinic(
+                name='Other Clinic', working_hours_start='09:00',
+                working_hours_end='18:00', working_days='1,2,3,4,5',
+            )
+            db.session.add(clinic_b)
+            db.session.flush()
+            other_doc = User(
+                email='otherdoc@test.kz', first_name='Other', last_name='Doc',
+                role='doctor', clinic_id=clinic_b.id, specialization='Хирург',
+                is_active=True,
+            )
+            other_doc.set_password('password123')
+            db.session.add(other_doc)
+            db.session.commit()
+
+        login(client, 'patient@test.kz')
+        resp = client.get('/patient/doctors')
+        assert resp.status_code == 200
+        page = resp.data.decode()
+        # Patient should see their clinic's doctors but NOT the other clinic's doctor
+        assert 'Other' not in page or 'Doc' not in page
 
 
 class TestStatusTransitionValidation:

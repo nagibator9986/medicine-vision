@@ -179,7 +179,7 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end shadow-sm">
                             <li>
-                                <a class="dropdown-item" href="{% if current_user.role == 'doctor' %}{{ url_for('doctor.profile') }}{% elif current_user.role == 'patient' %}{{ url_for('patient.profile') }}{% else %}#{% endif %}">
+                                <a class="dropdown-item" href="{% if current_user.role == 'doctor' %}{{ url_for('doctor.profile') }}{% elif current_user.role == 'patient' %}{{ url_for('patient.profile') }}{% elif current_user.role == 'superadmin' %}{{ url_for('admin.profile') }}{% elif current_user.role == 'clinic_admin' %}{{ url_for('clinic.profile') }}{% else %}#{% endif %}">
                                     <i class="fas fa-user me-2 text-primary"></i> Профиль
                                 </a>
                             </li>

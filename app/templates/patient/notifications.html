@@ -56,7 +56,8 @@
         <div class="card-body p-0">
             <div class="list-group list-group-flush">
                 {% for notification in notifications %}
-                <div class="list-group-item notification-item {{ 'unread' if not notification.is_read else 'read' }} py-3 px-4">
+                <div class="list-group-item notification-item {{ 'unread' if not notification.is_read else 'read' }} py-3 px-4"
+                     {% if notification.link %}style="cursor: pointer;" onclick="window.location.href='{{ notification.link }}'"{% endif %}>
                     <div class="d-flex align-items-start">
                         <!-- Icon -->
                         <div class="notification-icon {{ notification.type or 'default' }} me-3">
@@ -79,6 +80,9 @@
                                 <div>
                                     <h6 class="mb-1 fw-semibold {% if not notification.is_read %}text-dark{% else %}text-muted{% endif %}">
                                         {{ notification.title }}
+                                        {% if notification.link %}
+                                        <i class="fas fa-external-link-alt ms-1 small text-primary"></i>
+                                        {% endif %}
                                     </h6>
                                     <p class="mb-1 small {% if not notification.is_read %}text-dark{% else %}text-muted{% endif %}">
                                         {{ notification.message }}
@@ -89,7 +93,7 @@
                                 </div>
                                 <div class="ms-3 flex-shrink-0">
                                     {% if not notification.is_read %}
-                                    <form method="POST" action="{{ url_for('patient.mark_notification_read', notification_id=notification.id) }}" class="d-inline">
+                                    <form method="POST" action="{{ url_for('patient.mark_notification_read', notification_id=notification.id) }}" class="d-inline" onclick="event.stopPropagation();">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-primary" title="Отметить как прочитанное">
                                             <i class="fas fa-check"></i>

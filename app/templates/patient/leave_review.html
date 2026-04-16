@@ -91,7 +91,7 @@
                     </div>
 
                     <form method="POST" novalidate>
-                        {{ form.hidden_tag() }}
+                        {{ form.csrf_token }}
 
                         <label class="form-label fw-semibold d-block text-center">Ваша оценка</label>
 
