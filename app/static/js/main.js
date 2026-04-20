@@ -235,6 +235,22 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Wire up forms with data-confirm-delete-form attribute
+    document.querySelectorAll('form[data-confirm-delete-form]').forEach(function (form) {
+        var confirmed = false;
+        form.addEventListener('submit', function (e) {
+            if (confirmed) return;
+            e.preventDefault();
+            var msg = form.getAttribute('data-confirm-message') || 'Вы уверены? Это действие нельзя отменить.';
+            confirmDelete(msg).then(function (ok) {
+                if (ok) {
+                    confirmed = true;
+                    form.submit();
+                }
+            });
+        });
+    });
+
     // ==========================================
     // Format Dates to Russian Locale
     // ==========================================

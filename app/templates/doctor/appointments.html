@@ -112,13 +112,20 @@
                                     {% endif %}
                                     {% if appointment.status == 'awaiting_report' %}
                                         <form method="POST" action="{{ url_for('doctor.update_appointment_status', appointment_id=appointment.id) }}" class="d-inline">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                             <input type="hidden" name="status" value="completed">
                                             <button type="submit" class="btn btn-success" title="Завершить приём">
                                                 <i class="fas fa-check"></i>
                                             </button>
                                         </form>
                                     {% endif %}
-                                    <a href="{{ url_for('doctor.patient_detail', patient_id=appointment.patient.id) }}" class="btn btn-outline-info" title="Карта пациента">
+                                    {% if appointment.videocall and (appointment.videocall.transcription or appointment.videocall.summary) %}
+                                        <a href="{{ url_for('videocall.room', room_id=appointment.videocall.room_id) }}"
+                                           class="btn btn-outline-info" title="Результаты транскрипции">
+                                            <i class="fas fa-file-medical-alt"></i>
+                                        </a>
+                                    {% endif %}
+                                    <a href="{{ url_for('doctor.patient_detail', patient_id=appointment.patient.id) }}" class="btn btn-outline-secondary" title="Карта пациента">
                                         <i class="fas fa-user"></i>
                                     </a>
                                 </div>

@@ -36,12 +36,17 @@ def save_logo(file):
     """Save an uploaded clinic logo and return the stored filename (without subdir prefix)."""
     if not file or not getattr(file, 'filename', ''):
         return None
-    original = secure_filename(file.filename) or 'logo'
-    ext = original.rsplit('.', 1)[-1].lower() if '.' in original else ''
+    original = secure_filename(file.filename) or ''
+    if '.' not in original:
+        return None
+    ext = original.rsplit('.', 1)[-1].lower()
     if ext not in ALLOWED_IMAGE_EXTENSIONS:
         return None
     filename = f"{uuid.uuid4().hex}.{ext}"
-    upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'clinics')
+    upload_dir = os.path.join(
+        current_app.config.get('UPLOAD_FOLDER') or os.path.join(current_app.root_path, 'static', 'uploads'),
+        'clinics',
+    )
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, filename))
     return filename
@@ -177,8 +182,10 @@ def create_clinic():
         )
 
         # Handle logo upload
-        if form.logo.data and form.logo.data.filename:
-            clinic.logo = save_logo(form.logo.data)
+        if form.logo.data and getattr(form.logo.data, 'filename', ''):
+            saved_logo = save_logo(form.logo.data)
+            if saved_logo:
+                clinic.logo = saved_logo
 
         db.session.add(clinic)
         db.session.flush()  # get clinic.id before creating admin user
@@ -213,23 +220,30 @@ def edit_clinic(clinic_id):
     form = ClinicForm(obj=clinic)
 
     if form.validate_on_submit():
-        clinic.name = form.name.data
-        clinic.description = form.description.data
-        clinic.address = form.address.data
-        clinic.phone = form.phone.data
-        clinic.email = form.email.data
-        clinic.website = form.website.data
-        clinic.primary_color = form.primary_color.data or clinic.primary_color
-        clinic.secondary_color = form.secondary_color.data or clinic.secondary_color
-        clinic.working_hours_start = form.working_hours_start.data or clinic.working_hours_start
-        clinic.working_hours_end = form.working_hours_end.data or clinic.working_hours_end
+        try:
+            clinic.name = form.name.data
+            clinic.description = form.description.data
+            clinic.address = form.address.data
+            clinic.phone = form.phone.data
+            clinic.email = form.email.data
+            clinic.website = form.website.data
+            clinic.primary_color = form.primary_color.data or clinic.primary_color
+            clinic.secondary_color = form.secondary_color.data or clinic.secondary_color
+            clinic.working_hours_start = form.working_hours_start.data or clinic.working_hours_start
+            clinic.working_hours_end = form.working_hours_end.data or clinic.working_hours_end
 
-        if form.logo.data and form.logo.data.filename:
-            clinic.logo = save_logo(form.logo.data)
+            if form.logo.data and getattr(form.logo.data, 'filename', ''):
+                saved_logo = save_logo(form.logo.data)
+                if saved_logo:
+                    clinic.logo = saved_logo
 
-        db.session.commit()
-        flash(f'Клиника "{clinic.name}" обновлена.', 'success')
-        return redirect(url_for('admin.clinics'))
+            db.session.commit()
+            flash(f'Клиника "{clinic.name}" обновлена.', 'success')
+            return redirect(url_for('admin.clinics'))
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.exception('Failed to update clinic %s', clinic_id)
+            flash(f'Не удалось обновить клинику: {exc}', 'danger')
 
     return render_template('admin/clinic_form.html', form=form, title='Редактирование клиники', clinic=clinic)
 

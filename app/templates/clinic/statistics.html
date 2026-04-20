@@ -137,11 +137,11 @@
                     </h5>
                 </div>
                 <div class="card-body text-center py-4">
+                    {% set avg = (average_rating or 0)|float %}
                     <div class="display-3 fw-bold text-primary mb-2">
-                        {{ average_rating|default(0)|round(1) }}
+                        {{ "%.1f"|format(avg) }}
                     </div>
                     <div class="star-rating mb-3">
-                        {% set avg = average_rating|default(0)|round(1) %}
                         {% for i in range(5) %}
                             {% if i < avg|int %}
                                 <i class="fas fa-star fa-2x"></i>
@@ -191,7 +191,7 @@
     </div>
 
     <!-- Top Doctors -->
-    <div class="card border-0 shadow-sm">
+    <div class="card border-0 shadow-sm mb-4">
         <div class="card-header bg-white border-0 pt-4 pb-2">
             <h5 class="fw-bold mb-0">
                 <i class="fas fa-trophy text-warning me-2"></i>Лучшие врачи
@@ -261,6 +261,61 @@
             <div class="text-center py-5 text-muted">
                 <i class="fas fa-user-md fa-3x mb-3 d-block"></i>
                 <p class="mb-0">Данные о врачах пока отсутствуют</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Doctor Reviews -->
+    <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 pt-4 pb-2">
+            <h5 class="fw-bold mb-0">
+                <i class="fas fa-comments text-info me-2"></i>Последние отзывы пациентов
+            </h5>
+        </div>
+        <div class="card-body">
+            {% if doctor_reviews %}
+            <div class="row g-3">
+                {% for review in doctor_reviews %}
+                <div class="col-lg-6">
+                    <div class="border rounded p-3 h-100">
+                        <div class="d-flex justify-content-between align-items-start mb-2">
+                            <div>
+                                <h6 class="mb-0 fw-semibold">
+                                    <i class="fas fa-user-md me-1 text-primary"></i>
+                                    {{ review.doctor.full_name }}
+                                </h6>
+                                <small class="text-muted">
+                                    Пациент: {{ review.patient.first_name }} {{ review.patient.last_name }}
+                                </small>
+                            </div>
+                            <small class="text-muted">{{ review.created_at.strftime('%d.%m.%Y') }}</small>
+                        </div>
+                        <div class="mb-2">
+                            {% for i in range(1, 6) %}
+                                {% if i <= review.rating %}
+                                    <i class="fas fa-star text-warning"></i>
+                                {% else %}
+                                    <i class="far fa-star text-warning"></i>
+                                {% endif %}
+                            {% endfor %}
+                            <span class="text-muted small ms-1">({{ review.rating }}/5)</span>
+                        </div>
+                        {% if review.comment %}
+                        <p class="mb-0 text-muted small">
+                            <i class="fas fa-quote-left me-1 small"></i>{{ review.comment }}
+                        </p>
+                        {% else %}
+                        <p class="mb-0 text-muted small fst-italic">Без комментария</p>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <div class="text-center py-4 text-muted">
+                <i class="fas fa-comment-slash fa-3x mb-3 d-block"></i>
+                <p class="mb-0">Отзывов пока нет</p>
             </div>
             {% endif %}
         </div>

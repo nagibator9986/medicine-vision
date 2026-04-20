@@ -284,25 +284,34 @@ def settings():
     form = ClinicForm(obj=clinic_obj)
 
     if form.validate_on_submit():
-        clinic_obj.name = form.name.data
-        clinic_obj.description = form.description.data
-        clinic_obj.address = form.address.data
-        clinic_obj.phone = form.phone.data
-        clinic_obj.email = form.email.data
-        clinic_obj.website = form.website.data
-        clinic_obj.primary_color = form.primary_color.data
-        clinic_obj.secondary_color = form.secondary_color.data
-        clinic_obj.working_hours_start = form.working_hours_start.data
-        clinic_obj.working_hours_end = form.working_hours_end.data
+        try:
+            clinic_obj.name = form.name.data
+            clinic_obj.description = form.description.data
+            clinic_obj.address = form.address.data
+            clinic_obj.phone = form.phone.data
+            clinic_obj.email = form.email.data
+            clinic_obj.website = form.website.data
+            if form.primary_color.data:
+                clinic_obj.primary_color = form.primary_color.data
+            if form.secondary_color.data:
+                clinic_obj.secondary_color = form.secondary_color.data
+            if form.working_hours_start.data:
+                clinic_obj.working_hours_start = form.working_hours_start.data
+            if form.working_hours_end.data:
+                clinic_obj.working_hours_end = form.working_hours_end.data
 
-        if form.logo.data and getattr(form.logo.data, 'filename', ''):
-            new_logo = save_logo(form.logo.data)
-            if new_logo:
-                clinic_obj.logo = new_logo
+            if form.logo.data and getattr(form.logo.data, 'filename', ''):
+                new_logo = save_logo(form.logo.data)
+                if new_logo:
+                    clinic_obj.logo = new_logo
 
-        db.session.commit()
-        flash('Настройки клиники обновлены.', 'success')
-        return redirect(url_for('clinic.settings'))
+            db.session.commit()
+            flash('Настройки клиники обновлены.', 'success')
+            return redirect(url_for('clinic.settings'))
+        except Exception as exc:
+            db.session.rollback()
+            current_app.logger.exception('Failed to update clinic settings')
+            flash(f'Не удалось обновить настройки: {exc}', 'danger')
 
     return render_template('clinic/settings.html', form=form, clinic=clinic_obj)
 
@@ -368,6 +377,7 @@ def statistics():
         ) or 0
         monthly_revenue.append({
             'month': month_start.strftime('%B %Y'),
+            'label': month_start.strftime('%b %Y'),
             'revenue': rev,
         })
 
@@ -382,8 +392,26 @@ def statistics():
         ).scalar()
         avg_rating = round(result, 2) if result else None
 
+    # Total patients for this clinic
+    patients_by_clinic = db.session.query(User.id).filter(
+        User.clinic_id == clinic_obj.id, User.role == 'patient'
+    )
+    patients_by_appointment = (
+        db.session.query(Appointment.patient_id)
+        .filter(Appointment.clinic_id == clinic_obj.id)
+    )
+    total_patients = (
+        db.session.query(User.id)
+        .filter(db.or_(
+            User.id.in_(patients_by_clinic),
+            User.id.in_(patients_by_appointment),
+        ))
+        .distinct()
+        .count()
+    )
+
     # Top doctors by appointment count
-    top_doctors = (
+    top_doctors_raw = (
         db.session.query(
             User,
             db.func.count(Appointment.id).label('apt_count')
@@ -395,18 +423,36 @@ def statistics():
         .limit(5)
         .all()
     )
+    # Flatten to objects the template can access directly
+    top_doctors = []
+    for user_obj, apt_count in top_doctors_raw:
+        user_obj.appointments_count = apt_count
+        top_doctors.append(user_obj)
+
+    # Doctor reviews for this clinic
+    doctor_reviews = []
+    if doctor_ids:
+        doctor_reviews = (
+            Review.query
+            .filter(Review.doctor_id.in_(doctor_ids))
+            .order_by(Review.created_at.desc())
+            .limit(20)
+            .all()
+        )
 
     return render_template(
         'clinic/statistics.html',
         clinic=clinic_obj,
         total_doctors=total_doctors,
+        total_patients=total_patients,
         total_appointments=total_appointments,
         completed_appointments=completed_appointments,
         cancelled_appointments=cancelled_appointments,
         total_revenue=total_revenue,
         monthly_revenue=monthly_revenue,
-        avg_rating=avg_rating,
+        average_rating=avg_rating,
         top_doctors=top_doctors,
+        doctor_reviews=doctor_reviews,
     )
 
 

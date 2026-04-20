@@ -510,12 +510,13 @@ def leave_review(appointment_id):
 
     if form.validate_on_submit():
         rating = int(form.rating.data)
+        comment_text = (form.comment.data or '').strip() or None
         review = Review(
             patient_id=current_user.id,
             doctor_id=appointment.doctor_id,
             appointment_id=appointment.id,
             rating=rating,
-            comment=form.comment.data,
+            comment=comment_text,
         )
         db.session.add(review)
 

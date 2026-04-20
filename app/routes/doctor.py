@@ -279,6 +279,21 @@ def create_prescription(appointment_id):
                 recommendations=form.recommendations.data,
             )
             db.session.add(prescription)
+
+            # Auto-create a medical record so the prescription appears in patient's med card
+            record_content = f'Диагноз: {form.diagnosis.data or "—"}'
+            if form.medications.data:
+                record_content += f'\nНазначения: {form.medications.data}'
+            if form.recommendations.data:
+                record_content += f'\nРекомендации: {form.recommendations.data}'
+            med_record = MedicalRecord(
+                patient_id=appointment.patient_id,
+                doctor_id=current_user.id,
+                record_type='examination',
+                title=f'Заключение врача — приём {appointment.scheduled_time.strftime("%d.%m.%Y")}',
+                content=record_content,
+            )
+            db.session.add(med_record)
             flash('Рецепт успешно создан.', 'success')
 
         try:
