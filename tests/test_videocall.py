@@ -128,7 +128,9 @@ class TestVideoCallTranscribe:
             ).count()
             assert notifs == 2
 
-    def test_transcribe_missing_text_returns_400(self, client, app, doctor_user, appointment):
+    def test_transcribe_empty_text_still_creates_notifications(self, client, app, doctor_user, appointment):
+        """Empty transcription is accepted — fallback summary, notifications, and
+        medical record are still created so participants always see the call happened."""
         with app.app_context():
             vc = VideoCall(
                 appointment_id=appointment, room_id=str(uuid.uuid4()), status='active',
@@ -141,4 +143,17 @@ class TestVideoCallTranscribe:
         resp = client.post(f'/videocall/transcribe/{room_id}',
                            json={'transcription': ''},
                            content_type='application/json')
-        assert resp.status_code == 400
+        assert resp.status_code == 200
+        data = resp.get_json()
+        assert data['status'] == 'success'
+        assert data['summary']  # fallback summary generated
+
+        with app.app_context():
+            notifs = Notification.query.filter(
+                Notification.title == 'Транскрипция консультации готова'
+            ).count()
+            assert notifs == 2
+            # Medical record was created from the call
+            from app.models import MedicalRecord
+            recs = MedicalRecord.query.filter_by(record_type='consultation').count()
+            assert recs == 1

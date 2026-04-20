@@ -1,6 +1,6 @@
 import os
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone, date
 
 from flask import Blueprint, render_template, redirect, url_for, flash, request, current_app, abort
 from flask_login import login_required, current_user
@@ -348,13 +348,12 @@ def analytics():
     total_appointments = Appointment.query.count()
     total_videocalls = VideoCall.query.count()
 
-    # Appointments by status
-    appointments_by_status = (
+    # Appointments by status — template expects `status_stats`
+    status_stats = dict(
         db.session.query(Appointment.status, db.func.count(Appointment.id))
         .group_by(Appointment.status)
         .all()
     )
-    appointments_by_status = dict(appointments_by_status)
 
     # Appointments over last 30 days
     thirty_days_ago = datetime.now(timezone.utc).replace(tzinfo=None) - timedelta(days=30)
@@ -377,6 +376,44 @@ def analytics():
         .all()
     )
 
+    # Monthly data for last 6 months
+    RU_MONTHS = ['Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+                 'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек']
+    monthly_data = []
+    today_d = date.today()
+    for i in range(5, -1, -1):
+        month = today_d.month - i
+        year = today_d.year
+        while month <= 0:
+            month += 12
+            year -= 1
+        month_start = datetime(year, month, 1)
+        if month == 12:
+            month_end = datetime(year + 1, 1, 1)
+        else:
+            month_end = datetime(year, month + 1, 1)
+
+        apt_count = Appointment.query.filter(
+            Appointment.created_at >= month_start,
+            Appointment.created_at < month_end,
+        ).count()
+        new_pats = User.query.filter(
+            User.role == 'patient',
+            User.created_at >= month_start,
+            User.created_at < month_end,
+        ).count()
+        new_docs = User.query.filter(
+            User.role == 'doctor',
+            User.created_at >= month_start,
+            User.created_at < month_end,
+        ).count()
+        monthly_data.append({
+            'label': f'{RU_MONTHS[month - 1]} {year}',
+            'appointments': apt_count,
+            'new_patients': new_pats,
+            'new_doctors': new_docs,
+        })
+
     return render_template(
         'admin/analytics.html',
         total_clinics=total_clinics,
@@ -385,10 +422,11 @@ def analytics():
         total_patients=total_patients,
         total_appointments=total_appointments,
         total_videocalls=total_videocalls,
-        appointments_by_status=appointments_by_status,
+        status_stats=status_stats,
         recent_appointments_count=recent_appointments_count,
         new_users_count=new_users_count,
         top_clinics=top_clinics,
+        monthly_data=monthly_data,
     )
 
 

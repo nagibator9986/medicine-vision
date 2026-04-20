@@ -848,17 +848,16 @@
             transcriptionOn = false;
         }
 
-        // Send transcription if any
-        if (fullTranscript.trim()) {
-            try {
-                await fetch('/videocall/transcribe/' + roomId, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ transcription: fullTranscript })
-                });
-            } catch (err) {
-                console.error('Transcription save error:', err);
-            }
+        // Always POST — server handles empty transcription (sends notifications
+        // and creates a medical record entry either way).
+        try {
+            await fetch('/videocall/transcribe/' + roomId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ transcription: (fullTranscript || '').trim() })
+            });
+        } catch (err) {
+            console.error('Transcription save error:', err);
         }
 
         // Stop local streams
