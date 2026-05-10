@@ -50,6 +50,18 @@ class User(UserMixin, db.Model):
     def full_name(self):
         return f"{self.first_name} {self.last_name}"
 
+    @property
+    def average_rating(self):
+        """Average review rating for this user (when acting as a doctor). 0 when no reviews."""
+        reviews = list(self.received_reviews) if self.received_reviews else []
+        if not reviews:
+            return 0
+        return sum(r.rating for r in reviews) / len(reviews)
+
+    @property
+    def reviews_count(self):
+        return len(list(self.received_reviews)) if self.received_reviews else 0
+
     def __repr__(self):
         return f'<User {self.email}>'
 

@@ -139,10 +139,7 @@ def transcribe(room_id):
     if current_user.id not in (appointment.doctor_id, appointment.patient_id):
         abort(403)
 
-    # Skip if transcription was already saved (prevents duplicate notifications
-    # when both participants end the call and send transcription)
-    if videocall.transcription:
-        return jsonify({'status': 'already_saved', 'summary': videocall.summary})
+    PLACEHOLDER_TRANSCRIPT = 'Транскрипция не велась во время звонка.'
 
     data = request.get_json(silent=True) or {}
     raw_text = (data.get('transcription') or '').strip()
@@ -155,12 +152,28 @@ def transcribe(room_id):
         if appointment.scheduled_time else ''
     )
 
-    # Save transcription (placeholder if empty so status flow can progress)
-    videocall.transcription = transcription_text or 'Транскрипция не велась во время звонка.'
+    # Decide whether this is the first save, or a retry that needs the summary regenerated.
+    # We only short-circuit when both transcription AND summary are already present.
+    transcription_was_saved = bool(videocall.transcription)
+    summary_already_present = bool(videocall.summary)
+
+    if transcription_was_saved and summary_already_present:
+        return jsonify({'status': 'already_saved', 'summary': videocall.summary})
+
+    # Save transcription on first call. On retries, prefer the previously saved
+    # text — it might be longer than what the second client uploaded.
+    if not transcription_was_saved:
+        videocall.transcription = transcription_text or PLACEHOLDER_TRANSCRIPT
+    elif transcription_text and videocall.transcription == PLACEHOLDER_TRANSCRIPT:
+        # First save was empty (placeholder); a retry brought real text.
+        videocall.transcription = transcription_text
+
+    # Use whatever transcription is now stored to generate the summary.
+    effective_text = videocall.transcription if videocall.transcription != PLACEHOLDER_TRANSCRIPT else ''
 
     # Generate AI summary
     summary = None
-    if transcription_text:
+    if effective_text:
         from app.ai import chat_completion
         summary_messages = [
             {
@@ -173,66 +186,123 @@ def transcribe(room_id):
             },
             {
                 'role': 'user',
-                'content': f'<transcription>\n{transcription_text}\n</transcription>\n\nСоздайте краткое резюме.',
+                'content': f'<transcription>\n{effective_text}\n</transcription>\n\nСоздайте краткое резюме.',
             },
         ]
         ai_summary, error = chat_completion(summary_messages, max_tokens=1000, temperature=0.3)
         if ai_summary:
-            summary = ai_summary
+            summary = ai_summary.strip()
         elif error:
-            logger.warning('Transcription summary failed: %s', error)
+            logger.warning('Transcription summary failed for room %s: %s', room_id, error)
 
     if not summary:
         # Fallback summary when transcription is empty or AI unavailable
         summary = (
             f'Видеоконсультация между врачом {doctor_name} и пациентом {patient_name} '
             f'состоялась {appointment_date}. '
-            + ('Подробная транскрипция недоступна.' if not transcription_text
-               else 'AI-резюме не удалось сформировать.')
+            + ('Подробная транскрипция недоступна.' if not effective_text
+               else 'AI-резюме не удалось сформировать автоматически.')
         )
 
     videocall.summary = summary
 
-    # Create a medical record for the patient
-    try:
-        med_content = summary
-        if transcription_text:
-            med_content += '\n\n--- Транскрипция ---\n' + transcription_text
-        med_record = MedicalRecord(
-            patient_id=appointment.patient_id,
-            doctor_id=appointment.doctor_id,
-            record_type='consultation',
-            title=f'Видеоконсультация — {appointment_date or "без даты"}',
-            content=med_content,
-        )
-        db.session.add(med_record)
-    except Exception:
-        logger.exception('Failed to build medical record from transcription')
+    # Only create the medical record + notifications on the FIRST save.
+    # If we're here because the previous attempt left a missing summary, just
+    # update the existing summary on the videocall and skip side effects.
+    if not transcription_was_saved:
+        try:
+            med_content = summary
+            if effective_text:
+                med_content += '\n\n--- Транскрипция ---\n' + effective_text
+            med_record = MedicalRecord(
+                patient_id=appointment.patient_id,
+                doctor_id=appointment.doctor_id,
+                record_type='consultation',
+                title=f'Видеоконсультация — {appointment_date or "без даты"}',
+                content=med_content,
+            )
+            db.session.add(med_record)
+        except Exception:
+            logger.exception('Failed to build medical record from transcription')
 
-    db.session.commit()
+        db.session.commit()
 
-    # Create notifications for both doctor and patient
-    room_link = url_for('videocall.room', room_id=room_id)
-    db.session.add(Notification(
-        user_id=appointment.doctor_id,
-        title='Транскрипция консультации готова',
-        message=f'Транскрипция видеоконсультации с пациентом {patient_name} сохранена.',
-        type='info',
-        link=room_link,
-    ))
-    db.session.add(Notification(
-        user_id=appointment.patient_id,
-        title='Транскрипция консультации готова',
-        message=f'Транскрипция видеоконсультации с доктором {doctor_name} сохранена.',
-        type='info',
-        link=room_link,
-    ))
-    db.session.commit()
+        room_link = url_for('videocall.room', room_id=room_id)
+        db.session.add(Notification(
+            user_id=appointment.doctor_id,
+            title='Транскрипция консультации готова',
+            message=f'Транскрипция видеоконсультации с пациентом {patient_name} сохранена.',
+            type='info',
+            link=room_link,
+        ))
+        db.session.add(Notification(
+            user_id=appointment.patient_id,
+            title='Транскрипция консультации готова',
+            message=f'Транскрипция видеоконсультации с доктором {doctor_name} сохранена.',
+            type='info',
+            link=room_link,
+        ))
+        db.session.commit()
+    else:
+        # Retry path — only the videocall.summary was updated.
+        db.session.commit()
 
     return jsonify({
         'status': 'success',
         'summary': summary,
     })
+
+
+@videocall_bp.route('/regenerate-summary/<room_id>', methods=['POST'])
+@login_required
+@csrf.exempt
+def regenerate_summary(room_id):
+    """Re-run AI summarization on an already-saved transcription.
+
+    Useful when the original attempt failed (e.g., expired API key) and the user
+    wants to retry without losing the saved transcript.
+    """
+    videocall = VideoCall.query.filter_by(room_id=room_id).first() or abort(404)
+    appointment = videocall.appointment
+
+    if current_user.id not in (appointment.doctor_id, appointment.patient_id):
+        abort(403)
+
+    PLACEHOLDER_TRANSCRIPT = 'Транскрипция не велась во время звонка.'
+    transcript = (videocall.transcription or '').strip()
+
+    if not transcript or transcript == PLACEHOLDER_TRANSCRIPT:
+        return jsonify({
+            'status': 'no_transcript',
+            'error': 'Нет сохранённой транскрипции для повторной генерации резюме.',
+        }), 400
+
+    from app.ai import chat_completion
+    summary_messages = [
+        {
+            'role': 'system',
+            'content': (
+                'Вы — медицинский ассистент. Создайте краткое резюме телемедицинской консультации '
+                'на основе транскрипции разговора врача и пациента. Укажите основные жалобы, '
+                'рекомендации врача и ключевые моменты. Отвечайте на русском языке.'
+            ),
+        },
+        {
+            'role': 'user',
+            'content': f'<transcription>\n{transcript}\n</transcription>\n\nСоздайте краткое резюме.',
+        },
+    ]
+    ai_summary, error = chat_completion(summary_messages, max_tokens=1000, temperature=0.3)
+    if not ai_summary:
+        logger.warning('Re-generate summary failed for room %s: %s', room_id, error)
+        return jsonify({
+            'status': 'error',
+            'error': error or 'AI-сервис временно недоступен.',
+        }), 502
+
+    videocall.summary = ai_summary.strip()
+    db.session.commit()
+    return jsonify({'status': 'success', 'summary': videocall.summary})
 
 
 # SocketIO event handlers for WebRTC signaling

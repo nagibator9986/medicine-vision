@@ -486,14 +486,20 @@ def profile():
         current_user.last_name = form.last_name.data
         current_user.phone = form.phone.data
 
-        if form.avatar.data and form.avatar.data.filename:
-            avatar_filename = secure_filename(form.avatar.data.filename)
-            name, ext = os.path.splitext(avatar_filename)
-            avatar_filename = f"{name}_{int(datetime.now(timezone.utc).replace(tzinfo=None).timestamp())}{ext}"
-            upload_dir = os.path.join(current_app.root_path, 'static', 'uploads', 'avatars')
-            os.makedirs(upload_dir, exist_ok=True)
-            form.avatar.data.save(os.path.join(upload_dir, avatar_filename))
-            current_user.avatar = f'uploads/avatars/{avatar_filename}'
+        if form.avatar.data and getattr(form.avatar.data, 'filename', ''):
+            original = secure_filename(form.avatar.data.filename) or ''
+            if '.' in original:
+                ext = original.rsplit('.', 1)[-1].lower()
+                if ext in ALLOWED_IMAGE_EXTENSIONS:
+                    avatar_filename = f"{uuid.uuid4().hex}.{ext}"
+                    upload_dir = os.path.join(
+                        current_app.config.get('UPLOAD_FOLDER')
+                        or os.path.join(current_app.root_path, 'static', 'uploads'),
+                        'avatars',
+                    )
+                    os.makedirs(upload_dir, exist_ok=True)
+                    form.avatar.data.save(os.path.join(upload_dir, avatar_filename))
+                    current_user.avatar = avatar_filename
 
         db.session.commit()
         flash('Профиль обновлен.', 'success')

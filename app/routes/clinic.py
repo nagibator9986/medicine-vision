@@ -123,7 +123,26 @@ def doctors():
     doctors_list = User.query.filter_by(
         clinic_id=current_user.clinic_id, role='doctor', is_active=True
     ).order_by(User.created_at.desc()).all()
-    return render_template('clinic/doctors.html', doctors=doctors_list)
+
+    # Pre-load latest reviews for each doctor so the template can render them
+    # without triggering N+1 queries.
+    reviews_by_doctor = {}
+    if doctors_list:
+        doctor_ids = [d.id for d in doctors_list]
+        all_reviews = (
+            Review.query
+            .filter(Review.doctor_id.in_(doctor_ids))
+            .order_by(Review.created_at.desc())
+            .all()
+        )
+        for review in all_reviews:
+            reviews_by_doctor.setdefault(review.doctor_id, []).append(review)
+
+    return render_template(
+        'clinic/doctors.html',
+        doctors=doctors_list,
+        reviews_by_doctor=reviews_by_doctor,
+    )
 
 
 @clinic.route('/doctors/add', methods=['GET', 'POST'])
